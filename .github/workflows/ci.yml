@@ -58,7 +58,45 @@ jobs:
       - run: npm run build
         working-directory: web
 
-# Deploying from CI needs an IAM role for GitHub's OIDC provider. Once that exists,
-# add a job that assumes it and runs `npx cdk deploy` from infra/ using the
-# api-aot-linux-arm64 artifact, so deploys ship the AOT build rather than the
-# trimmed fallback that a macOS host produces.
+  deploy:
+    needs: [api, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required to request the OIDC token
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-aot-linux-arm64
+          path: api/publish
+
+      - name: Restore the executable bit
+        # Artifacts do not preserve file modes, and provided.al2023 will not run a
+        # bootstrap that is not executable.
+        run: chmod +x api/publish/bootstrap
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            infra/package-lock.json
+
+      - name: Build the web app
+        run: npm ci && npm run build
+        working-directory: web
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Deploy
+        run: npm ci && npx cdk deploy Budget --require-approval never
+        working-directory: infra
+        env:
+          CDK_DEFAULT_REGION: ${{ vars.AWS_REGION }}
