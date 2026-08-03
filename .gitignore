@@ -1,0 +1,31 @@
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# .NET build output. Scoped to api/ so it does not swallow infra/bin, which is
+# the CDK entry point.
+api/**/[Bb]in/
+api/**/[Oo]bj/
+*.user
+
+# Lambda build output
+api/publish/
+
+# CDK
+infra/cdk.out
+infra/.cdk.staging
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.sw?

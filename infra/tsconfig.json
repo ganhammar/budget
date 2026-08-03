@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noEmitOnError": true,
+    "declaration": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    // The CDK app runs through tsx, so type-checking never needs to emit.
+    "noEmit": true
+  },
+  "include": ["bin/**/*.ts", "lib/**/*.ts"],
+  "exclude": ["node_modules", "cdk.out"]
+}

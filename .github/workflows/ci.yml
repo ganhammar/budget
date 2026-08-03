@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  api:
+    # Native AOT cannot cross-compile, so the build host must match the Lambda
+    # architecture: linux-arm64. This job is what actually proves the AOT build
+    # works, which is the failure mode `dotnet run` never surfaces.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Native AOT toolchain
+        run: sudo apt-get update && sudo apt-get install -y clang zlib1g-dev
+
+      - name: Publish Native AOT
+        run: AOT=true ./api/scripts/publish.sh
+
+      - name: Verify the artifact
+        run: |
+          test -x api/publish/bootstrap
+          file api/publish/bootstrap | tee /dev/stderr | grep -q 'ARM aarch64'
+          echo "Size: $(du -h api/publish/bootstrap | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-aot-linux-arm64
+          path: api/publish/
+          retention-days: 7
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+        working-directory: web
+
+      - name: Verify the calculation engine against the original spreadsheet
+        run: npm run verify
+        working-directory: web
+
+      - run: npm run build
+        working-directory: web
+
+# Deploying from CI needs an IAM role for GitHub's OIDC provider. Once that exists,
+# add a job that assumes it and runs `npx cdk deploy` from infra/ using the
+# api-aot-linux-arm64 artifact, so deploys ship the AOT build rather than the
+# trimmed fallback that a macOS host produces.

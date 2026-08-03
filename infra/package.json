@@ -1,0 +1,25 @@
+{
+  "name": "budget-infra",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "infra": "bin/infra.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff",
+    "destroy": "cdk destroy"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "aws-cdk": "^2.1000.0",
+    "tsx": "^4.23.5",
+    "typescript": "~5.9.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.4.2"
+  }
+}
