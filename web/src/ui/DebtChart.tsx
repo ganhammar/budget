@@ -33,9 +33,11 @@ interface ChartProps {
    * one. Hiding a loan must not repaint the ones that remain.
    */
   colorIndex: Record<string, number>;
+  /** Month each loan clears, or null where nothing amortizes it. */
+  payoff: Record<string, string | null>;
 }
 
-export function DebtChart({ points, loans, colorIndex }: ChartProps) {
+export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const clipId = useId().replace(/:/g, '');
@@ -181,6 +183,9 @@ export function DebtChart({ points, loans, colorIndex }: ChartProps) {
                 <span className="legend-item" key={loan.id}>
                   <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
                   {loan.description}
+                  <em>
+                    {payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : 'amorteras inte'}
+                  </em>
                 </span>
               ))}
             </div>

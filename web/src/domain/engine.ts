@@ -162,6 +162,43 @@ export function debtOverTime(budget: Budget, from: Month, months: number): DebtP
   return out;
 }
 
+/**
+ * The month each loan reaches zero, or null where nothing amortizes it.
+ *
+ * A stacked chart cannot answer this on its own: a 30 000 loan beside a million
+ * is a few pixels tall and appears to vanish immediately, or not to exist at all.
+ */
+export function payoffMonths(budget: Budget): Record<string, Month | null> {
+  const result: Record<string, Month | null> = {};
+  for (const loan of budget.loans) result[loan.id] = null;
+
+  if (budget.amortizationStreams.length === 0) return result;
+
+  const debts = new Map<string, number>();
+  for (const loan of budget.loans) debts.set(loan.id, loan.originalDebt);
+
+  let i = Math.min(...budget.amortizationStreams.map((s) => toIndex(s.start)));
+  const limit = i + 1200;
+
+  while (i < limit) {
+    const month = fromIndex(i);
+    if (applyAmortization(budget, debts, month).size === 0) {
+      // Nothing left that any stream can pay down.
+      if ([...debts.values()].every((d) => d <= EPSILON)) break;
+      break;
+    }
+    for (const loan of budget.loans) {
+      if (result[loan.id] === null && (debts.get(loan.id) ?? 0) <= EPSILON) {
+        result[loan.id] = addMonths(month, 1);
+      }
+    }
+    if ([...debts.values()].every((d) => d <= EPSILON)) break;
+    i++;
+  }
+
+  return result;
+}
+
 /* ---------- Income ---------- */
 
 export function incomeFor(budget: Budget, memberId: string, month: Month): number {

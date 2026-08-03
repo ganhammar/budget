@@ -562,10 +562,16 @@ select:focus {
 
 .legend-item {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  align-items: baseline;
   font-size: 11px;
   color: var(--ink-2);
+}
+
+/* Payoff month, so a band too thin to see still says when it ends. */
+.legend-item em {
+  font-style: normal;
+  color: var(--muted);
+  margin-left: 5px;
 }
 
 .swatch {

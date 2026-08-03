@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useBudget, newId } from '../store/store';
 import { RATE_FIXATIONS, type AmortizationStream, type Loan, type RateFixation } from '../domain/types';
-import { calculateMonth, debtFreeMonth, debtOverTime, effectiveRate } from '../domain/engine';
+import {
+  calculateMonth,
+  debtFreeMonth,
+  debtOverTime,
+  effectiveRate,
+  payoffMonths,
+} from '../domain/engine';
 import { percent, sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
 import { DebtChart, DebtTable, seriesColor } from './DebtChart';
@@ -38,6 +44,7 @@ export function Loans() {
     () => Object.fromEntries(budget.loans.map((l, i) => [l.id, i])),
     [budget.loans],
   );
+  const payoff = useMemo(() => payoffMonths(budget), [budget]);
 
   // Run to payoff when it is known, so the rollover between loans is visible,
   // with a ceiling for the case where nothing is being amortized.
@@ -152,7 +159,12 @@ export function Loans() {
           ) : showDebtTable ? (
             <DebtTable points={debtPoints} loans={shown} />
           ) : (
-            <DebtChart points={debtPoints} loans={shown} colorIndex={colorIndex} />
+            <DebtChart
+              points={debtPoints}
+              loans={shown}
+              colorIndex={colorIndex}
+              payoff={payoff}
+            />
           )}
         </Card>
       )}
@@ -178,7 +190,13 @@ export function Loans() {
               key={line.loan.id}
               title={line.loan.description}
               badge={memberName(line.loan.payerId)}
-              subtitle={`${sek(line.debt)} · ${percent(line.loan.nominalRate)} nom · ränta ${sek(line.interest)}${line.amortization > 0 ? ` · amort ${sek(line.amortization)}` : ''}`}
+              subtitle={`${sek(line.debt)} · ${percent(line.loan.nominalRate)} nom · ränta ${sek(line.interest)}${
+                line.amortization > 0 ? ` · amort ${sek(line.amortization)}` : ''
+              } · ${
+                payoff[line.loan.id]
+                  ? `slutbetald ${formatMonthShort(payoff[line.loan.id]!)}`
+                  : 'amorteras inte'
+              }`}
               amount={sek(line.total)}
               amountNote="/mån"
               onClick={() => {
