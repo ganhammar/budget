@@ -13,9 +13,9 @@ jobs:
     # works, which is the failure mode `dotnet run` never surfaces.
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -31,7 +31,7 @@ jobs:
           file api/publish/bootstrap | tee /dev/stderr | grep -q 'ARM aarch64'
           echo "Size: $(du -h api/publish/bootstrap | cut -f1)"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: api-aot-linux-arm64
           path: api/publish/
@@ -40,11 +40,11 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -66,9 +66,9 @@ jobs:
       id-token: write # required to request the OIDC token
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: api-aot-linux-arm64
           path: api/publish
@@ -78,9 +78,9 @@ jobs:
         # bootstrap that is not executable.
         run: chmod +x api/publish/bootstrap
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: |
             web/package-lock.json
@@ -90,7 +90,7 @@ jobs:
         run: npm ci && npm run build
         working-directory: web
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
