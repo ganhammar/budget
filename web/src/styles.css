@@ -505,18 +505,29 @@ select:focus {
 }
 
 /*
- * Height is fixed rather than content-driven. A box that grows on hover pushes
- * the chart under the cursor, which retriggers the hover and makes the whole
- * card oscillate.
+ * Both states are stacked in the same grid cell and toggled with visibility, so
+ * the box is always as tall as the taller of the two and never resizes on hover.
+ * A box that grows on hover pushes the chart under the cursor, which retriggers
+ * the hover and makes the whole card oscillate. Reserving a guessed pixel height
+ * instead only works until a label wraps.
  */
 .chart-detail {
-  min-height: 142px;
+  display: grid;
   margin-top: 8px;
   padding: 9px 11px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
   font-size: 12px;
+}
+
+.chart-detail > * {
+  grid-area: 1 / 1;
+}
+
+.detail-layer[data-hidden='true'] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .tooltip-month {

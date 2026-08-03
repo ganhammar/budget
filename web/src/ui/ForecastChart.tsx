@@ -124,46 +124,46 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
       </svg>
 
       {/*
-        Fixed height, always rendered, with a constant number of rows. Anything
-        that resizes on hover moves the chart under the cursor, which retriggers
-        the hover, which resizes it again.
+        Both layers always render so the box keeps the height of the taller one.
+        Anything that resizes on hover moves the chart under the cursor, which
+        retriggers the hover, which resizes it again.
       */}
       <div className="chart-detail">
-        {selected ? (
-          <>
-            <div className="tooltip-month">{formatMonth(selected.month)}</div>
-            <div className="tooltip-row">
-              <span>Saldo vid månadens slut</span>
-              <strong className={selected.closing < 0 ? 'negative' : ''}>
-                {sek(selected.closing)}
-              </strong>
-            </div>
-            <div className="tooltip-row">
-              <span>In från medlemmarna</span>
-              <span>{sek(selected.inflow)}</span>
-            </div>
-            <div className="tooltip-row">
-              <span>Ut från kontot</span>
-              <span>{sek(selected.outflow)}</span>
-            </div>
-            {ITEM_SLOTS.map((slot) => {
-              const item = selected.items[slot];
-              return (
-                <div className="tooltip-row item" key={slot}>
-                  <span>{item ? item.label : ' '}</span>
-                  <span>{item ? sek(item.amount) : ''}</span>
-                </div>
-              );
-            })}
-          </>
-        ) : (
+        <div className="detail-layer" data-hidden={selected === null} aria-hidden={selected === null}>
+          <div className="tooltip-month">{formatMonth((selected ?? points[0]).month)}</div>
+          <div className="tooltip-row">
+            <span>Saldo vid månadens slut</span>
+            <strong className={(selected?.closing ?? 0) < 0 ? 'negative' : ''}>
+              {sek((selected ?? points[0]).closing)}
+            </strong>
+          </div>
+          <div className="tooltip-row">
+            <span>In från medlemmarna</span>
+            <span>{sek((selected ?? points[0]).inflow)}</span>
+          </div>
+          <div className="tooltip-row">
+            <span>Ut från kontot</span>
+            <span>{sek((selected ?? points[0]).outflow)}</span>
+          </div>
+          {ITEM_SLOTS.map((slot) => {
+            const item = (selected ?? points[0]).items[slot];
+            return (
+              <div className="tooltip-row item" key={slot}>
+                <span>{item ? item.label : ' '}</span>
+                <span>{item ? sek(item.amount) : ''}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="detail-layer" data-hidden={selected !== null} aria-hidden={selected !== null}>
           <span className="hint">
             {firstNegative
               ? `Kontot går under noll i ${formatMonth(firstNegative.month)}.`
               : 'Kontot håller sig över noll i hela perioden.'}{' '}
             Peka på grafen för detaljer.
           </span>
-        )}
+        </div>
       </div>
     </div>
   );

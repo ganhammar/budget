@@ -157,41 +157,40 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
         )}
       </svg>
 
-      {/* Fixed height so hovering never resizes the card and moves the chart. */}
-      <div className="chart-detail" style={{ minHeight: 34 + loans.length * 18 }}>
-        {selected ? (
-          <>
-            <div className="tooltip-month">{formatMonth(selected.month)}</div>
+      {/*
+        Both layers always render so the box keeps the height of the taller one.
+        Anything that resizes on hover moves the chart under the cursor.
+      */}
+      <div className="chart-detail">
+        <div className="detail-layer" data-hidden={selected === null} aria-hidden={selected === null}>
+          <div className="tooltip-month">{formatMonth((selected ?? points[0]).month)}</div>
+          {loans.map((loan) => (
+            <div className="tooltip-row" key={loan.id}>
+              <span>
+                <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
+                {loan.description}
+              </span>
+              <span>{sek((selected ?? points[0]).debts[loan.id] ?? 0)}</span>
+            </div>
+          ))}
+          <div className="tooltip-row total">
+            <span>Totalt</span>
+            <strong>{sek(selectedTotal)}</strong>
+          </div>
+        </div>
+
+        <div className="detail-layer" data-hidden={selected !== null} aria-hidden={selected !== null}>
+          <div className="legend">
             {loans.map((loan) => (
-              <div className="tooltip-row" key={loan.id}>
-                <span>
-                  <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
-                  {loan.description}
-                </span>
-                <span>{sek(selected.debts[loan.id] ?? 0)}</span>
-              </div>
+              <span className="legend-item" key={loan.id}>
+                <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
+                {loan.description}
+                <em>{payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : 'amorteras inte'}</em>
+              </span>
             ))}
-            <div className="tooltip-row total">
-              <span>Totalt</span>
-              <strong>{sek(selectedTotal)}</strong>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="legend">
-              {loans.map((loan) => (
-                <span className="legend-item" key={loan.id}>
-                  <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
-                  {loan.description}
-                  <em>
-                    {payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : 'amorteras inte'}
-                  </em>
-                </span>
-              ))}
-            </div>
-            <span className="hint">Peka på grafen för skulden en viss månad.</span>
-          </>
-        )}
+          </div>
+          <span className="hint">Peka på grafen för skulden en viss månad.</span>
+        </div>
       </div>
     </div>
   );
