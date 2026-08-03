@@ -491,14 +491,19 @@ select:focus {
   stroke-width: 1;
 }
 
-.tooltip {
+/*
+ * Height is fixed rather than content-driven. A box that grows on hover pushes
+ * the chart under the cursor, which retriggers the hover and makes the whole
+ * card oscillate.
+ */
+.chart-detail {
+  min-height: 142px;
+  margin-top: 8px;
+  padding: 9px 11px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
-  padding: 9px 11px;
   font-size: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-  margin-top: 8px;
 }
 
 .tooltip-month {
@@ -510,8 +515,21 @@ select:focus {
   display: flex;
   justify-content: space-between;
   gap: 14px;
+  min-height: 18px;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
+}
+
+.tooltip-row.item {
+  padding-left: 10px;
+  font-size: 11px;
+  min-height: 16px;
+}
+
+.tooltip-row span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- Table ---------- */

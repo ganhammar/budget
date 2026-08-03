@@ -18,6 +18,9 @@ function useWidth<T extends HTMLElement>() {
 const MARGIN = { top: 12, right: 10, bottom: 24, left: 52 };
 const HEIGHT = 200;
 
+/** Always this many item rows, so the detail box never changes height. */
+const ITEM_SLOTS = [0, 1, 2];
+
 export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
@@ -120,38 +123,48 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
         )}
       </svg>
 
-      {selected ? (
-        <div className="tooltip">
-          <div className="tooltip-month">{formatMonth(selected.month)}</div>
-          <div className="tooltip-row">
-            <span>Saldo vid månadens slut</span>
-            <strong className={selected.closing < 0 ? 'negative' : ''}>
-              {sek(selected.closing)}
-            </strong>
-          </div>
-          <div className="tooltip-row">
-            <span>In från medlemmarna</span>
-            <span>{sek(selected.inflow)}</span>
-          </div>
-          <div className="tooltip-row">
-            <span>Ut från kontot</span>
-            <span>{sek(selected.outflow)}</span>
-          </div>
-          {selected.items.slice(0, 4).map((item, i) => (
-            <div className="tooltip-row" key={i} style={{ paddingLeft: 10, fontSize: 11 }}>
-              <span>{item.label}</span>
-              <span>{sek(item.amount)}</span>
+      {/*
+        Fixed height, always rendered, with a constant number of rows. Anything
+        that resizes on hover moves the chart under the cursor, which retriggers
+        the hover, which resizes it again.
+      */}
+      <div className="chart-detail">
+        {selected ? (
+          <>
+            <div className="tooltip-month">{formatMonth(selected.month)}</div>
+            <div className="tooltip-row">
+              <span>Saldo vid månadens slut</span>
+              <strong className={selected.closing < 0 ? 'negative' : ''}>
+                {sek(selected.closing)}
+              </strong>
             </div>
-          ))}
-        </div>
-      ) : (
-        <span className="hint" style={{ display: 'block', marginTop: 8 }}>
-          {firstNegative
-            ? `Kontot går under noll i ${formatMonth(firstNegative.month)}.`
-            : 'Kontot håller sig över noll i hela perioden.'}{' '}
-          Peka på grafen för detaljer.
-        </span>
-      )}
+            <div className="tooltip-row">
+              <span>In från medlemmarna</span>
+              <span>{sek(selected.inflow)}</span>
+            </div>
+            <div className="tooltip-row">
+              <span>Ut från kontot</span>
+              <span>{sek(selected.outflow)}</span>
+            </div>
+            {ITEM_SLOTS.map((slot) => {
+              const item = selected.items[slot];
+              return (
+                <div className="tooltip-row item" key={slot}>
+                  <span>{item ? item.label : ' '}</span>
+                  <span>{item ? sek(item.amount) : ''}</span>
+                </div>
+              );
+            })}
+          </>
+        ) : (
+          <span className="hint">
+            {firstNegative
+              ? `Kontot går under noll i ${formatMonth(firstNegative.month)}.`
+              : 'Kontot håller sig över noll i hela perioden.'}{' '}
+            Peka på grafen för detaljer.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
