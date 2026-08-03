@@ -15,9 +15,19 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import { Construct } from 'constructs';
 
 const ROOT = path.join(__dirname, '..', '..');
+
+const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'budget.ganhammar.se';
+
+// CloudFront only accepts certificates from us-east-1 regardless of stack region.
+// DNS lives in Cloudflare, so this was requested and validated by hand rather than
+// created by CDK, and is imported by ARN.
+const CERTIFICATE_ARN =
+  process.env.CERTIFICATE_ARN ??
+  'arn:aws:acm:us-east-1:519157272275:certificate/aada0efe-f233-42da-8326-54c5135b7527';
 
 export class BudgetStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -90,6 +100,8 @@ export class BudgetStack extends Stack {
     });
 
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      domainNames: [SITE_DOMAIN],
+      certificate: acm.Certificate.fromCertificateArn(this, 'Certificate', CERTIFICATE_ARN),
       defaultRootObject: 'index.html',
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
