@@ -89,6 +89,8 @@ jobs:
       - name: Build the web app
         run: npm ci && npm run build
         working-directory: web
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
 
       - uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -100,3 +102,4 @@ jobs:
         working-directory: infra
         env:
           CDK_DEFAULT_REGION: ${{ vars.AWS_REGION }}
+          GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}

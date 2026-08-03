@@ -14,6 +14,7 @@ import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -35,6 +36,22 @@ export class BudgetStack extends Stack {
 
     /* ---------- API ---------- */
 
+    // Signs the session cookie. Generated once and never in the template, so
+    // rotating it is a matter of changing the secret rather than redeploying code.
+    const sessionSecret = new secretsmanager.Secret(this, 'SessionSecret', {
+      description: 'HMAC key for Budget session cookies',
+      generateSecretString: {
+        passwordLength: 64,
+        excludePunctuation: true,
+      },
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
+    const googleClientId = process.env.GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      throw new Error('GOOGLE_CLIENT_ID must be set to synthesize the API');
+    }
+
     const api = new lambda.Function(this, 'Api', {
       // Custom runtime, zip payload. The executable is named `bootstrap`.
       runtime: lambda.Runtime.PROVIDED_AL2023,
@@ -45,12 +62,13 @@ export class BudgetStack extends Stack {
       timeout: Duration.seconds(20),
       environment: {
         TABLE_NAME: table.tableName,
-        // Auth is mocked for now; this is the identity assumed when no header is sent.
-        DEV_EMAIL: 'ganhammar@gmail.com',
+        GOOGLE_CLIENT_ID: googleClientId,
+        SESSION_SECRET_ARN: sessionSecret.secretArn,
       },
     });
 
     table.grantReadWriteData(api);
+    sessionSecret.grantRead(api);
 
     // A Lambda function URL behind CloudFront OAC looks tempting, but OAC signs the
     // request without the body, so every POST/PUT fails SigV4 validation with a 403.

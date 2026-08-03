@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useStore } from './store/store';
+import { SignIn } from './ui/SignIn';
 import { Onboarding } from './ui/Onboarding';
 import { Overview } from './ui/Overview';
 import { RecurringCosts } from './ui/RecurringCosts';
@@ -27,10 +28,11 @@ function useHash() {
 }
 
 export default function App() {
-  const { budget, loading, error } = useStore();
+  const { signedIn, budget, loading, error } = useStore();
   const hash = useHash();
 
   if (loading) return <p className="empty">Hämtar budgeten…</p>;
+  if (!signedIn) return <SignIn />;
   if (!budget) return <Onboarding />;
 
   const tab = TABS.find((t) => t.key === hash);

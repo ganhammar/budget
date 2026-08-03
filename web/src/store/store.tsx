@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Budget, Member } from '../domain/types';
-import { api, ApiError, setCurrentEmail } from '../api/client';
+import { api, ApiError } from '../api/client';
 import { planSync } from './sync';
 
 export function newId(): string {
@@ -24,20 +24,24 @@ function normalize(budget: Budget): Budget {
 }
 
 interface Store {
+  signedIn: boolean;
+  email: string | null;
   budget: Budget | null;
   me: Member | null;
   isAdmin: boolean;
   loading: boolean;
   error: string | null;
   update: (fn: (budget: Budget) => Budget) => void;
-  createHousehold: (householdName: string, name: string, email: string) => Promise<void>;
-  signInAs: (memberId: string) => void;
-  reset: () => void;
+  signIn: (googleCredential: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  createHousehold: (householdName: string, name: string) => Promise<void>;
 }
 
 const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const [signedIn, setSignedIn] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
   const [budget, setBudget] = useState<Budget | null>(null);
   const [memberId, setMemberId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,17 +55,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const me = await api.me();
-      if (!me.authenticated || !me.profile) {
+      setSignedIn(me.signedIn);
+      setEmail(me.email);
+
+      if (!me.signedIn || !me.profile) {
         setBudget(null);
         setMemberId(null);
         return;
       }
-      setCurrentEmail(me.email);
       setMemberId(me.profile.memberId);
       setBudget(normalize(await api.budget()));
     } catch (e) {
-      if (e instanceof ApiError && e.status === 401) setBudget(null);
-      else setError(e instanceof Error ? e.message : 'Kunde inte hämta budgeten.');
+      if (e instanceof ApiError && e.status === 401) {
+        setSignedIn(false);
+        setBudget(null);
+      } else {
+        setError(e instanceof Error ? e.message : 'Kunde inte hämta budgeten.');
+      }
     } finally {
       setLoading(false);
     }
@@ -70,6 +80,44 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const signIn = useCallback(
+    async (googleCredential: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const me = await api.signIn(googleCredential);
+        setSignedIn(me.signedIn);
+        setEmail(me.email);
+        if (me.profile) {
+          setMemberId(me.profile.memberId);
+          setBudget(normalize(await api.budget()));
+        } else {
+          setBudget(null);
+        }
+      } catch (e) {
+        setError(
+          e instanceof ApiError && e.status === 401
+            ? 'Google godkände inte inloggningen.'
+            : 'Inloggningen misslyckades.',
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const signOut = useCallback(async () => {
+    try {
+      await api.signOut();
+    } finally {
+      setSignedIn(false);
+      setEmail(null);
+      setBudget(null);
+      setMemberId(null);
+    }
+  }, []);
 
   const update = useCallback((fn: (budget: Budget) => Budget) => {
     setBudget((previous) => {
@@ -89,59 +137,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const createHousehold = useCallback(
-    async (householdName: string, name: string, email: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        setCurrentEmail(email);
-        const created = normalize(await api.createHousehold(householdName, name, email));
-        setBudget(created);
-        setMemberId(created.members[0]?.id ?? null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Hushållet kunde inte skapas.');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  /** Development affordance: switches which member the mock auth reports as caller. */
-  const signInAs = useCallback(
-    (id: string) => {
-      const member = budget?.members.find((m) => m.id === id);
-      if (!member) return;
-      setCurrentEmail(member.email);
-      setMemberId(id);
-    },
-    [budget],
-  );
-
-  /** Signs out of this browser. It does not delete anything server side. */
-  const reset = useCallback(() => {
-    setCurrentEmail(null);
-    setBudget(null);
-    setMemberId(null);
-    void load();
-  }, [load]);
+  const createHousehold = useCallback(async (householdName: string, name: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const created = normalize(await api.createHousehold(householdName, name));
+      setBudget(created);
+      setMemberId(created.members[0]?.id ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Hushållet kunde inte skapas.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const value = useMemo<Store>(() => {
     const me = budget
       ? budget.members.find((m) => m.id === memberId) ?? budget.members[0] ?? null
       : null;
     return {
+      signedIn,
+      email,
       budget,
       me,
       isAdmin: me?.role === 'admin',
       loading,
       error,
       update,
+      signIn,
+      signOut,
       createHousehold,
-      signInAs,
-      reset,
     };
-  }, [budget, memberId, loading, error, update, createHousehold, signInAs, reset]);
+  }, [signedIn, email, budget, memberId, loading, error, update, signIn, signOut, createHousehold]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -8,7 +8,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function Household() {
   const { budget, me, isAdmin, update } = useBudget();
-  const { signInAs, reset } = useStore();
+  const { signOut, email: signedInEmail } = useStore();
   const [inviting, setInviting] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -109,23 +109,13 @@ export function Household() {
         )}
       </Card>
 
-      <Card title="Utvecklingsläge">
+      <Card title="Konto">
         <div style={{ marginBottom: 12 }}>
           <Note>
-            Inloggning är inte påkopplad än, så identiteten avgörs av vald medlem. Byt medlem för
-            att se appen ur någon annans vy.
+            Inloggad som <strong>{signedInEmail}</strong> via Google.
           </Note>
         </div>
-        <Field label="Inloggad som">
-          <select value={me.id} onChange={(e) => signInAs(e.target.value)}>
-            {budget.members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} ({m.role})
-              </option>
-            ))}
-          </select>
-        </Field>
-        <button className="btn btn-secondary" onClick={reset}>
+        <button className="btn btn-secondary" onClick={() => void signOut()}>
           Logga ut
         </button>
       </Card>

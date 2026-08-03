@@ -3,18 +3,6 @@ import type { Budget } from '../domain/types';
 /** Same origin in production, proxied by Vite in development. */
 const BASE = '/api';
 
-/** Mock auth: the signed-in identity travels in a header until Google sign-in lands. */
-const USER_KEY = 'budget.user';
-
-export function currentEmail(): string | null {
-  return localStorage.getItem(USER_KEY);
-}
-
-export function setCurrentEmail(email: string | null): void {
-  if (email) localStorage.setItem(USER_KEY, email);
-  else localStorage.removeItem(USER_KEY);
-}
-
 export interface Profile {
   email: string;
   householdId: string;
@@ -22,8 +10,8 @@ export interface Profile {
 }
 
 export interface Me {
-  authenticated: boolean;
-  email: string;
+  signedIn: boolean;
+  email: string | null;
   profile: Profile | null;
 }
 
@@ -37,14 +25,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const email = currentEmail();
   const response = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(email ? { 'X-Budget-User': email } : {}),
-      ...init?.headers,
-    },
+    // Carries the session cookie. Same-origin in production, but the dev proxy
+    // needs it stated explicitly.
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
 
   if (!response.ok) {
@@ -66,10 +52,16 @@ export const api = {
   me: () => request<Me>('/me'),
   budget: () => request<Budget>('/budget'),
 
-  createHousehold: (householdName: string, name: string, email: string) =>
+  /** Exchanges a Google ID token for our own session cookie. */
+  signIn: (credential: string) =>
+    request<Me>('/auth/session', { method: 'POST', body: JSON.stringify({ credential }) }),
+
+  signOut: () => request<void>('/auth/signout', { method: 'POST' }),
+
+  createHousehold: (householdName: string, name: string) =>
     request<Budget>('/households', {
       method: 'POST',
-      body: JSON.stringify({ householdName, name, email }),
+      body: JSON.stringify({ householdName, name }),
     }),
 
   renameHousehold: (name: string) =>

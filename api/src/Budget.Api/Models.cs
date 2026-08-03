@@ -71,12 +71,16 @@ public sealed record UserProfile(string Email, string HouseholdId, string Member
 
 /* ---------- Requests ---------- */
 
-public sealed record CreateHouseholdRequest(string HouseholdName, string Name, string Email);
+/// <summary>The name comes from the request; the email always comes from the session.</summary>
+public sealed record CreateHouseholdRequest(string HouseholdName, string Name);
 
 public sealed record RenameHouseholdRequest(string Name);
 
 public sealed record PutIncomeRequest(decimal Amount, string? EnteredById);
 
-public sealed record MeResponse(bool Authenticated, string Email, UserProfile? Profile);
+/// <summary>The ID token issued by Google Identity Services in the browser.</summary>
+public sealed record GoogleSignInRequest(string Credential);
+
+public sealed record MeResponse(bool SignedIn, string? Email, UserProfile? Profile);
 
 public sealed record ErrorResponse(string Message);
