@@ -62,6 +62,27 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
             JsonSerializer.Serialize(profile, AppJsonContext.Default.UserProfile),
             ct);
 
+    public Task DeleteProfileAsync(string email, CancellationToken ct) =>
+        Delete(UserKey(email), Profile, ct);
+
+    public async Task<Member?> GetMemberAsync(string householdId, string memberId, CancellationToken ct)
+    {
+        var response = await client.GetItemAsync(
+            new GetItemRequest
+            {
+                TableName = tableName,
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    ["pk"] = S(HouseholdKey(householdId)),
+                    ["sk"] = S($"MEMBER#{memberId}"),
+                },
+            },
+            ct);
+
+        if (!response.IsItemSet || !response.Item.TryGetValue("data", out var data)) return null;
+        return JsonSerializer.Deserialize(data.S, AppJsonContext.Default.Member);
+    }
+
     /* ---------- Whole budget ---------- */
 
     public async Task<BudgetDto?> GetBudgetAsync(string householdId, CancellationToken ct)

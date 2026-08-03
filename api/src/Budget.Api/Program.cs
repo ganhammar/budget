@@ -71,6 +71,8 @@ app.MapPost("/api/auth/session", async (
 
     CallerResolver.SetSessionCookie(ctx, sessions, identity.Email);
 
+    // Activation happens in CallerResolver, so it also covers anyone invited while
+    // already holding a session.
     var profile = await store.GetProfileAsync(identity.Email, ct);
     return Results.Ok(new MeResponse(true, identity.Email, profile));
 });
@@ -157,11 +159,41 @@ api.MapPut("/account-balance", async (
     return Results.NoContent();
 });
 
-api.MapPut("/members/{id}", async (string id, Member body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
-    await Write(ctx, s, t, ct, h => s.PutMemberAsync(h, body with { Id = id }, ct)));
+// Members are the one collection with a side effect: the email has to be mapped to
+// the household, or an invited person signs in successfully and finds nothing.
+api.MapPut("/members/{id}", async (
+    string id, Member body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
 
-api.MapDelete("/members/{id}", async (string id, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
-    await Write(ctx, s, t, ct, h => s.DeleteMemberAsync(h, id, ct)));
+    var member = body with { Id = id };
+    var existing = await s.GetProfileAsync(member.Email, ct);
+
+    if (existing is not null && existing.HouseholdId != caller.HouseholdId)
+        return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
+
+    await s.PutMemberAsync(caller.HouseholdId, member, ct);
+
+    if (existing is null)
+        await s.PutProfileAsync(new UserProfile(member.Email, caller.HouseholdId, id), ct);
+
+    return Results.NoContent();
+});
+
+api.MapDelete("/members/{id}", async (
+    string id, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+
+    // The profile has to go too, or a removed member can still sign back in.
+    var member = await s.GetMemberAsync(caller.HouseholdId, id, ct);
+    if (member is not null) await s.DeleteProfileAsync(member.Email, ct);
+
+    await s.DeleteMemberAsync(caller.HouseholdId, id, ct);
+    return Results.NoContent();
+});
 
 api.MapPut("/costs/{id}", async (string id, RecurringCost body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
     await Write(ctx, s, t, ct, h => s.PutCostAsync(h, body with { Id = id }, ct)));

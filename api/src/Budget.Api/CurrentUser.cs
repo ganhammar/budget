@@ -4,12 +4,13 @@ namespace Budget.Api;
 /// Who is calling, resolved from the session cookie. The Google ID token is only
 /// seen once, at sign-in; every subsequent request carries this instead.
 /// </summary>
-public sealed record Caller(string? Email, UserProfile? Profile)
+public sealed record Caller(string? Email, UserProfile? Profile, Member? Member = null)
 {
     public bool IsSignedIn => Email is not null;
     public bool HasHousehold => Profile is not null;
     public string HouseholdId => Profile!.HouseholdId;
     public string MemberId => Profile!.MemberId;
+    public bool IsAdmin => Member?.Role == "admin";
 
     public static readonly Caller Anonymous = new(null, null);
 }
@@ -30,9 +31,29 @@ public static class CallerResolver
         context.Request.Cookies.TryGetValue(SessionTokens.CookieName, out var token);
         var email = await sessions.ReadAsync(token);
 
-        var caller = email is null
-            ? Caller.Anonymous
-            : new Caller(email, await store.GetProfileAsync(email, ct));
+        Caller caller;
+        if (email is null)
+        {
+            caller = Caller.Anonymous;
+        }
+        else
+        {
+            var profile = await store.GetProfileAsync(email, ct);
+            var member = profile is null
+                ? null
+                : await store.GetMemberAsync(profile.HouseholdId, profile.MemberId, ct);
+
+            // An invited member becomes active as soon as they turn up with a valid
+            // session. Doing this at sign-in instead would strand anyone who was
+            // invited while already holding a cookie, since they never sign in again.
+            if (member is { Status: "invited" })
+            {
+                member = member with { Status = "active" };
+                await store.PutMemberAsync(profile!.HouseholdId, member, ct);
+            }
+
+            caller = new Caller(email, profile, member);
+        }
 
         context.Items[ItemKey] = caller;
         return caller;
