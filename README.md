@@ -15,18 +15,26 @@ infra/   CDK (TypeScript).
 
 ## Status
 
-Deployed to eu-north-1. **Authentication is mocked**: the caller is whatever email
-arrives in the `X-Budget-User` header, falling back to `DEV_EMAIL`. The API is
-therefore effectively open, so do not put real figures in it until Google sign-in
-lands.
+Live in eu-north-1, deployed by CI. Google sign-in is in place and the API rejects
+anything without a valid session cookie.
 
 ## Running locally
 
 ```
-api/scripts/start-local-db.sh                       # DynamoDB Local + table
-cd api/src/Budget.Api && dotnet watch                # API on :5080
-cd web && npm run dev                                # app on :5173, proxies /api
+api/scripts/start-local-db.sh          # DynamoDB Local on :8042, creates the table
+cd api/src/Budget.Api && dotnet watch   # API on :5080
+cd web && npm run dev                   # app on :5173, proxies /api
 ```
+
+Both halves need the Google client id to allow sign-in:
+
+```
+export GOOGLE_CLIENT_ID=...              # api, validates the ID token audience
+export VITE_GOOGLE_CLIENT_ID=...         # web, renders the sign-in button
+```
+
+Without `SESSION_SECRET_ARN` the API derives a fixed signing key locally, so no AWS
+access is needed to run it. That key is deterministic and for development only.
 
 `cd web && npm run verify` checks the calculation engine against the numbers from
 the original spreadsheet.
@@ -75,6 +83,25 @@ toTransfer       = income − paidDirectly − surplusPerMember
 Anything tagged with a `payerId` is paid directly by that member and deducted from
 their transfer to the joint account. It does not change the split itself.
 
+## Authentication
+
+Google Identity Services hands the browser an ID token. That token is posted once
+to `/api/auth/session`, validated against Google's JWKS, and exchanged for our own
+HMAC-signed session cookie. Google is never consulted again.
+
+The exchange exists because Google ID tokens last an hour and a browser cannot hold
+a refresh token safely. Re-prompting hourly on a phone would be unusable, so the
+session cookie carries 30 days instead.
+
+The cookie is `httpOnly; Secure; SameSite=Lax`, which is enough because the app and
+the API are same-origin behind CloudFront. Its signing key is generated into Secrets
+Manager and read once per cold start.
+
+**Authentication and authorization are separate.** A verified Google account with no
+membership row gets a 401 and the create-household screen. That is why the OAuth
+consent screen can be published without exposing anything: access is decided by the
+household member list, not by who Google will vouch for.
+
 ## Architecture notes
 
 **One Lambda, not one per endpoint.** ASP.NET Core minimal APIs with
@@ -107,13 +134,46 @@ The published artifact is a zip on `provided.al2023` / arm64, with the executabl
 named `bootstrap`.
 
 Native AOT cannot cross-compile, so it only builds on linux-arm64. CI
-(`ubuntu-24.04-arm`) produces the real AOT artifact; `api/scripts/publish.sh`
-falls back to a trimmed self-contained build on any other host, which deploys
-identically but starts slower. **The currently deployed function is the fallback**,
-with a cold start around 1.2s. AOT should bring that to roughly 150-250ms.
+(`ubuntu-24.04-arm`) produces the real artifact; `api/scripts/publish.sh` falls back
+to a trimmed self-contained build on any other host, which deploys identically but
+starts slower. **Deploy through CI, not from a laptop**, or the fallback overwrites
+the AOT build.
+
+Measured on the deployed function:
+
+| | trimmed fallback | Native AOT |
+|---|---|---|
+| Init duration | 1247 ms | 276 ms |
+| Warm execution | 31 ms | 1.4 ms |
+| Artifact | 30 MB | 22 MB |
+
+Roughly 100 ms of that init is the Secrets Manager fetch for the session signing
+key, which happens before the first request is served.
 
 CI is the only thing that proves the AOT build works, since reflection and missing
 serializer contexts fail at runtime rather than during `dotnet run`.
+
+## Deployment
+
+Pushing to `main` runs three jobs: `api` builds the AOT artifact, `web` verifies the
+engine and builds, then `deploy` assumes an AWS role through GitHub's OIDC provider
+and runs `cdk deploy`.
+
+The account's existing `GithubDeploy` role is used, with this repository added to
+its trust policy allow-list. That list is pinned to `refs/heads/main` for this repo
+rather than a wildcard, because the repository is public and any wildcard subject
+would let an arbitrary pull request assume the role.
+
+Repository variables the workflow reads:
+
+| Variable | Purpose |
+|---|---|
+| `AWS_ROLE_ARN` | Role assumed via OIDC |
+| `AWS_REGION` | `eu-north-1` |
+| `VITE_GOOGLE_CLIENT_ID` | Google client id, for both the web build and the Lambda |
+
+Artifacts do not preserve file modes, so the deploy job restores the executable bit
+on `bootstrap` after downloading it. `provided.al2023` will not run it otherwise.
 
 ## Differences from the spreadsheet
 
@@ -127,8 +187,9 @@ amount and interval. That cannot be recovered and has to be re-entered.
 
 ## Next
 
-- Google sign-in exchanged once for a session JWT in an httpOnly cookie, replacing
-  `CallerResolver`. Everything else keeps working against the same shape.
-- An OIDC role for GitHub so CI can deploy the AOT artifact.
-- Month history snapshots.
-- Scraper for Länsförsäkringar's published list and average rates.
+- Custom domain `budget.ganhammar.se`. The ACM certificate exists in us-east-1;
+  DNS lives in Cloudflare, so validation and the alias record are manual steps.
+- Month history snapshots, so past months keep their own figures rather than being
+  recomputed from current data.
+- Scraper for Länsförsäkringar's published list and average rates, to compare
+  against your own rate and flag when renegotiating is worth it.
