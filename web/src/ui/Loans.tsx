@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useBudget, newId } from '../store/store';
 import { RATE_FIXATIONS, type AmortizationStream, type Loan, type RateFixation } from '../domain/types';
-import { calculateMonth, debtFreeMonth, effectiveRate } from '../domain/engine';
+import { calculateMonth, debtFreeMonth, debtOverTime, effectiveRate } from '../domain/engine';
 import { percent, sek } from '../domain/format';
-import { currentMonth, formatMonth, formatMonthShort } from '../domain/month';
+import { currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
+import { DebtChart, DebtTable, seriesColor } from './DebtChart';
 import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet, Stat } from './components';
 
 function blankLoan(): Loan {
@@ -25,14 +26,39 @@ export function Loans() {
   const [loanDraft, setLoanDraft] = useState<Loan | null>(null);
   const [streamDraft, setStreamDraft] = useState<AmortizationStream | null>(null);
   const [isNew, setIsNew] = useState(false);
+  // Empty means all, so loans added later are included without touching this.
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [showDebtTable, setShowDebtTable] = useState(false);
 
-  const result = calculateMonth(budget, currentMonth());
+  const nowMonth = currentMonth();
+  const debtFree = debtFreeMonth(budget);
+
+  const shown = budget.loans.filter((l) => !hidden.includes(l.id));
+  const colorIndex = useMemo(
+    () => Object.fromEntries(budget.loans.map((l, i) => [l.id, i])),
+    [budget.loans],
+  );
+
+  // Run to payoff when it is known, so the rollover between loans is visible,
+  // with a ceiling for the case where nothing is being amortized.
+  const debtPoints = useMemo(() => {
+    if (budget.loans.length === 0) return [];
+    const span = debtFree ? monthsBetween(nowMonth, debtFree) + 2 : 120;
+    return debtOverTime(budget, nowMonth, Math.max(12, Math.min(span, 480)));
+  }, [budget, nowMonth, debtFree]);
+
+  const result = calculateMonth(budget, nowMonth);
   const totalDebt = result.loanLines.reduce((sum, l) => sum + l.debt, 0);
   const totalInterest = result.loanLines.reduce((sum, l) => sum + l.interest, 0);
   const totalAmortization = result.loanLines.reduce((sum, l) => sum + l.amortization, 0);
-  const debtFree = debtFreeMonth(budget);
 
   const memberName = (id?: string) => budget.members.find((m) => m.id === id)?.name;
+
+  function toggle(loanId: string) {
+    setHidden((current) =>
+      current.includes(loanId) ? current.filter((id) => id !== loanId) : [...current, loanId],
+    );
+  }
 
   function saveLoan() {
     if (!loanDraft || !loanDraft.description.trim()) return;
@@ -93,6 +119,43 @@ export function Loans() {
           </div>
         )}
       </Card>
+
+      {debtPoints.length > 1 && (
+        <Card
+          title="Skuld över tid"
+          action={
+            <button
+              className="btn btn-small btn-secondary"
+              onClick={() => setShowDebtTable((v) => !v)}
+            >
+              {showDebtTable ? 'Graf' : 'Tabell'}
+            </button>
+          }
+        >
+          <div className="chip-row">
+            {budget.loans.map((loan) => (
+              <button
+                key={loan.id}
+                type="button"
+                className={`chip ${hidden.includes(loan.id) ? '' : 'on'}`}
+                aria-pressed={!hidden.includes(loan.id)}
+                onClick={() => toggle(loan.id)}
+              >
+                <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id]) }} />
+                {loan.description}
+              </button>
+            ))}
+          </div>
+
+          {shown.length === 0 ? (
+            <Empty text="Välj minst ett lån." />
+          ) : showDebtTable ? (
+            <DebtTable points={debtPoints} loans={shown} />
+          ) : (
+            <DebtChart points={debtPoints} loans={shown} colorIndex={colorIndex} />
+          )}
+        </Card>
+      )}
 
       <Card
         title="Lån"

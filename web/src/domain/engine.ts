@@ -131,6 +131,37 @@ export function debtFreeMonth(budget: Budget): Month | null {
   return null;
 }
 
+export interface DebtPoint {
+  month: Month;
+  /** Remaining debt per loan id at the start of this month. */
+  debts: Record<string, number>;
+  total: number;
+}
+
+/**
+ * Debt per loan, month by month. Shows amortization streams rolling from one loan
+ * onto the next as each is cleared, which is the whole point of plotting it.
+ */
+export function debtOverTime(budget: Budget, from: Month, months: number): DebtPoint[] {
+  const debts = debtAtStartOf(budget, from);
+  const out: DebtPoint[] = [];
+
+  for (let i = 0; i < months; i++) {
+    const month = addMonths(from, i);
+    const snapshot: Record<string, number> = {};
+    let total = 0;
+    for (const loan of budget.loans) {
+      const value = debts.get(loan.id) ?? 0;
+      snapshot[loan.id] = value;
+      total += value;
+    }
+    out.push({ month, debts: snapshot, total });
+    applyAmortization(budget, debts, month);
+  }
+
+  return out;
+}
+
 /* ---------- Income ---------- */
 
 export function incomeFor(budget: Budget, memberId: string, month: Month): number {

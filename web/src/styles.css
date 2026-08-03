@@ -9,7 +9,14 @@
   --grid: #e1e0d9;
   --baseline: #c3c2b7;
   --border: rgba(11, 11, 11, 0.1);
+  /* Categorical series, fixed order. Validated for adjacent-pair CVD separation
+     against this surface; do not reorder or substitute without revalidating. */
   --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
   --good-text: #006300;
   --critical: #d03b3b;
   --radius: 12px;
@@ -31,7 +38,13 @@
     --grid: #2c2c2a;
     --baseline: #383835;
     --border: rgba(255, 255, 255, 0.1);
+    /* Same six hues restepped for the dark surface, not an automatic flip. */
     --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
     --good-text: #0ca30c;
   }
 }
@@ -530,6 +543,73 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tooltip-row.total {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+  color: var(--ink);
+}
+
+/* Identity never rests on colour alone: every series is named here too. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--baseline);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chip.on {
+  color: var(--ink);
+  border-color: transparent;
+  background: var(--surface-2);
+}
+
+.chip .swatch {
+  opacity: 0.25;
+}
+
+.chip.on .swatch {
+  opacity: 1;
 }
 
 /* ---------- Table ---------- */
