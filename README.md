@@ -123,6 +123,24 @@ reminders without affecting anyone else's. The 27th is worded as the last one.
 Reminders ignore the in-app banner entirely. Closing a banner is a UI convenience,
 not a statement that the figure is handled.
 
+## Design
+
+Ledger, not dashboard. The app descends from a spreadsheet and its job is columns
+of figures that have to be read exactly, so the layout is hairlines and vertical
+rhythm rather than cards: amounts sit in a right-aligned tabular column, a serif
+carries labels and names, and red is reserved for negatives the way a paper ledger
+uses red ink.
+
+**Charts are grey lines with a dot per month**, not filled areas or coloured
+series. Each line is labelled at its right end, so identity comes from the name
+rather than the shade, which also means colourblindness cannot make two loans
+indistinguishable. The ink ramp exists only to keep neighbouring lines apart and
+was validated as an ordinal ramp against both papers: monotone lightness, visible
+step gaps, and the lightest step clearing the surface.
+
+A loan that has already cleared is not labelled on the chart, since it sits flat on
+zero where a label would collide with the axis and repeat what the legend says.
+
 ## Architecture notes
 
 **Two Lambdas: the API and the reminder job.** Still not one per endpoint. The API

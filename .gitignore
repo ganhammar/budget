@@ -30,3 +30,7 @@ infra/.cdk.staging
 .DS_Store
 *.suo
 *.sw?
+
+# Throwaway design exploration
+design-mockup.html
+web/public/mockup.html

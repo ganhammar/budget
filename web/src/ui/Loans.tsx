@@ -10,7 +10,7 @@ import {
 } from '../domain/engine';
 import { percent, sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
-import { DebtChart, DebtTable, seriesColor } from './DebtChart';
+import { DebtChart, DebtTable } from './DebtChart';
 import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet, Stat } from './components';
 
 function blankLoan(): Loan {
@@ -148,7 +148,6 @@ export function Loans() {
                 aria-pressed={!hidden.includes(loan.id)}
                 onClick={() => toggle(loan.id)}
               >
-                <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id]) }} />
                 {loan.description}
               </button>
             ))}

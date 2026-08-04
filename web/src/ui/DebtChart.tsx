@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DebtPoint } from '../domain/engine';
 import type { Loan } from '../domain/types';
 import { sek } from '../domain/format';
@@ -16,12 +16,18 @@ function useWidth<T extends HTMLElement>() {
   return { ref, width };
 }
 
-const MARGIN = { top: 12, right: 10, bottom: 24, left: 52 };
-const HEIGHT = 220;
+// Right margin holds the direct labels: identity comes from the name at the end
+// of each line, not from its shade.
+const MARGIN = { top: 12, right: 62, bottom: 22, left: 46 };
+const HEIGHT = 210;
 
-/** Fixed slot order. Colour follows the loan, never its rank in the stack. */
+/**
+ * Ink ramp rather than hues. Identity comes from the label at each line's end, so
+ * the shade is only there to keep neighbouring lines apart. Validated monotone
+ * against both papers.
+ */
 export function seriesColor(index: number): string {
-  return `var(--series-${(index % 6) + 1})`;
+  return `var(--ink-${(index % 6) + 1})`;
 }
 
 interface ChartProps {
@@ -29,8 +35,8 @@ interface ChartProps {
   /** Only the loans to draw. */
   loans: Loan[];
   /**
-   * Loan id to palette slot, keyed off the full loan list rather than the visible
-   * one. Hiding a loan must not repaint the ones that remain.
+   * Loan id to ramp step, keyed off the full loan list rather than the visible
+   * one. Hiding a loan must not re-shade the ones that remain.
    */
   colorIndex: Record<string, number>;
   /** Month each loan clears, or null where nothing amortizes it. */
@@ -40,7 +46,6 @@ interface ChartProps {
 export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
-  const clipId = useId().replace(/:/g, '');
 
   if (points.length < 2 || loans.length === 0) return null;
 
@@ -48,42 +53,38 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   const plotW = w - MARGIN.left - MARGIN.right;
   const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
 
-  const max = Math.max(1, ...points.map((p) => loans.reduce((s, l) => s + (p.debts[l.id] ?? 0), 0)));
+  // Each loan on its own line against a shared scale, so a small loan is still a
+  // visible trajectory rather than a sliver of a stack.
+  const max = Math.max(1, ...points.flatMap((p) => loans.map((l) => p.debts[l.id] ?? 0)));
 
   const x = (i: number) => MARGIN.left + (i * plotW) / (points.length - 1);
   const y = (v: number) => MARGIN.top + plotH - (v / max) * plotH;
 
-  // Cumulative bands, bottom to top, so the top edge is total debt.
-  const bands = loans.map((loan, index) => {
-    const lower: number[] = [];
-    const upper: number[] = [];
-    points.forEach((point, i) => {
-      const below = loans
-        .slice(0, index)
-        .reduce((sum, l) => sum + (point.debts[l.id] ?? 0), 0);
-      lower[i] = below;
-      upper[i] = below + (point.debts[loan.id] ?? 0);
-    });
-    const top = upper.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(v)}`).join(' ');
-    // Traced back along the lower edge so the band closes as a filled ribbon.
-    const bottom = lower
-      .map((_, i) => {
-        const j = lower.length - 1 - i;
-        return `L${x(j)},${y(lower[j])}`;
-      })
+  const dotStep = Math.max(1, Math.ceil(points.length / Math.max(3, Math.floor(plotW / 34))));
+  const labelStep = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotW / 46))));
+
+  const series = loans.map((loan) => {
+    const path = points
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(p.debts[loan.id] ?? 0)}`)
       .join(' ');
-    return { loan, d: `${top} ${bottom} Z` };
+    const endValue = points[points.length - 1].debts[loan.id] ?? 0;
+    return { loan, path, endValue };
   });
 
-  const totalLine = points
-    .map((p, i) => {
-      const total = loans.reduce((s, l) => s + (p.debts[l.id] ?? 0), 0);
-      return `${i === 0 ? 'M' : 'L'}${x(i)},${y(total)}`;
+  // Label the lines that still exist at the right edge, skipping any that would sit
+  // on top of one already placed. Loans that have cleared sit flat on zero, where a
+  // label would collide with the axis and say nothing the legend does not already.
+  const placed: number[] = [];
+  const labels = [...series]
+    .filter((s) => s.endValue > 0.005)
+    .sort((a, b) => b.endValue - a.endValue)
+    .map((s) => {
+      const ly = y(s.endValue);
+      const collides = placed.some((p) => Math.abs(p - ly) < 11);
+      if (!collides) placed.push(ly);
+      return { ...s, ly, show: !collides };
     })
-    .join(' ');
-
-  const ticks = [max, max / 2, 0];
-  const labelStep = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotW / 46))));
+    .filter((s) => s.show);
 
   function onPointer(e: React.PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -93,9 +94,8 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   }
 
   const selected = active === null ? null : points[active];
-  const selectedTotal = selected
-    ? loans.reduce((s, l) => s + (selected.debts[l.id] ?? 0), 0)
-    : 0;
+  const shown = selected ?? points[0];
+  const total = loans.reduce((sum, l) => sum + (shown.debts[l.id] ?? 0), 0);
 
   return (
     <div ref={ref}>
@@ -109,73 +109,95 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
         role="img"
         aria-label="Skuld per lån över tid"
       >
-        <defs>
-          <clipPath id={clipId}>
-            <rect x={MARGIN.left} y={0} width={plotW} height={HEIGHT} />
-          </clipPath>
-        </defs>
-
-        {ticks.map((v) => (
+        {[max, max / 2, 0].map((v) => (
           <g key={v}>
             <line className="gridline" x1={MARGIN.left} x2={w - MARGIN.right} y1={y(v)} y2={y(v)} />
-            <text className="tick" x={MARGIN.left - 8} y={y(v) + 3} textAnchor="end">
+            <text className="tick" x={MARGIN.left - 7} y={y(v) + 3} textAnchor="end">
               {v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${Math.round(v / 1000)}k`}
             </text>
           </g>
         ))}
 
-        <g clipPath={`url(#${clipId})`}>
-          {bands.map((band) => (
-            <path
-              key={band.loan.id}
-              d={band.d}
-              fill={seriesColor(colorIndex[band.loan.id] ?? 0)}
-              stroke="var(--surface)"
-              strokeWidth={1}
-              opacity={0.85}
-            />
-          ))}
-          <path d={totalLine} fill="none" stroke="var(--ink-2)" strokeWidth={1.5} />
-        </g>
+        {series.map(({ loan, path }) => (
+          <path
+            key={loan.id}
+            className="line"
+            d={path}
+            style={{ stroke: seriesColor(colorIndex[loan.id] ?? 0) }}
+          />
+        ))}
+
+        {series.map(({ loan }) =>
+          points.map((p, i) =>
+            i % dotStep === 0 ? (
+              <circle
+                key={`${loan.id}-${p.month}`}
+                className="dot"
+                cx={x(i)}
+                cy={y(p.debts[loan.id] ?? 0)}
+                r={2.2}
+                style={{ stroke: seriesColor(colorIndex[loan.id] ?? 0) }}
+              />
+            ) : null,
+          ),
+        )}
+
+        {labels.map(({ loan, ly }) => (
+          <text
+            key={loan.id}
+            className="series-label"
+            x={w - MARGIN.right + 6}
+            y={ly + 3}
+            style={{ fill: seriesColor(colorIndex[loan.id] ?? 0) }}
+          >
+            {loan.description}
+          </text>
+        ))}
 
         {points.map((p, i) =>
           i % labelStep === 0 && i <= points.length - 1 - labelStep / 2 ? (
-            <text key={p.month} className="tick" x={x(i)} y={HEIGHT - 8} textAnchor="middle">
+            <text key={p.month} className="tick" x={x(i)} y={HEIGHT - 7} textAnchor="middle">
               {formatMonthShort(p.month)}
             </text>
           ) : null,
         )}
 
         {selected && active !== null && (
-          <line
-            className="crosshair"
-            x1={x(active)}
-            x2={x(active)}
-            y1={MARGIN.top}
-            y2={MARGIN.top + plotH}
-          />
+          <>
+            <line
+              className="crosshair"
+              x1={x(active)}
+              x2={x(active)}
+              y1={MARGIN.top}
+              y2={MARGIN.top + plotH}
+            />
+            {loans.map((loan) => (
+              <circle
+                key={loan.id}
+                className="marker"
+                cx={x(active)}
+                cy={y(selected.debts[loan.id] ?? 0)}
+                r={3.4}
+                style={{ fill: seriesColor(colorIndex[loan.id] ?? 0) }}
+              />
+            ))}
+          </>
         )}
       </svg>
 
-      {/*
-        Both layers always render so the box keeps the height of the taller one.
-        Anything that resizes on hover moves the chart under the cursor.
-      */}
+      {/* Both layers always render so the box never resizes on hover. */}
       <div className="chart-detail">
         <div className="detail-layer" data-hidden={selected === null} aria-hidden={selected === null}>
-          <div className="tooltip-month">{formatMonth((selected ?? points[0]).month)}</div>
+          <div className="tooltip-month">{formatMonth(shown.month)}</div>
           {loans.map((loan) => (
             <div className="tooltip-row" key={loan.id}>
-              <span>
-                <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
-                {loan.description}
-              </span>
-              <span>{sek((selected ?? points[0]).debts[loan.id] ?? 0)}</span>
+              <span>{loan.description}</span>
+              <span>{sek(shown.debts[loan.id] ?? 0)}</span>
             </div>
           ))}
           <div className="tooltip-row total">
             <span>Totalt</span>
-            <strong>{sek(selectedTotal)}</strong>
+            <strong>{sek(total)}</strong>
           </div>
         </div>
 
@@ -183,7 +205,6 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
           <div className="legend">
             {loans.map((loan) => (
               <span className="legend-item" key={loan.id}>
-                <i className="swatch" style={{ background: seriesColor(colorIndex[loan.id] ?? 0) }} />
                 {loan.description}
                 <em>{payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : 'amorteras inte'}</em>
               </span>

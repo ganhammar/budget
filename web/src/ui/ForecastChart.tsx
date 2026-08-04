@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ForecastPoint } from '../domain/engine';
 import { sek } from '../domain/format';
 import { formatMonth, formatMonthShort } from '../domain/month';
@@ -15,8 +15,8 @@ function useWidth<T extends HTMLElement>() {
   return { ref, width };
 }
 
-const MARGIN = { top: 12, right: 10, bottom: 24, left: 52 };
-const HEIGHT = 200;
+const MARGIN = { top: 12, right: 8, bottom: 22, left: 46 };
+const HEIGHT = 190;
 
 /** Always this many item rows, so the detail box never changes height. */
 const ITEM_SLOTS = [0, 1, 2];
@@ -24,7 +24,6 @@ const ITEM_SLOTS = [0, 1, 2];
 export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
-  const clipId = useId().replace(/:/g, '');
 
   if (points.length < 2) return null;
 
@@ -44,10 +43,11 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
 
   const zeroY = y(0);
   const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(p.closing)}`).join(' ');
-  const area = `${line} L${x(points.length - 1)},${zeroY} L${x(0)},${zeroY} Z`;
   const ticks = [max, (max + min) / 2, min];
 
-  // A label like "aug 26" needs roughly 46px, so thin them out to whatever fits.
+  // A dot per month is the point of the chart, but at 24 points they collide.
+  // Thin them the same way as the axis labels rather than dropping them.
+  const dotStep = Math.max(1, Math.ceil(points.length / Math.max(4, Math.floor(plotW / 26))));
   const labelStep = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotW / 46))));
 
   function onPointer(e: React.PointerEvent<SVGSVGElement>) {
@@ -72,19 +72,10 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
         role="img"
         aria-label="Prognos för saldot på gemensamt konto"
       >
-        <defs>
-          <clipPath id={`${clipId}-above`}>
-            <rect x={0} y={0} width={w} height={Math.max(0, zeroY)} />
-          </clipPath>
-          <clipPath id={`${clipId}-below`}>
-            <rect x={0} y={zeroY} width={w} height={Math.max(0, HEIGHT - zeroY)} />
-          </clipPath>
-        </defs>
-
         {ticks.map((v) => (
           <g key={v}>
             <line className="gridline" x1={MARGIN.left} x2={w - MARGIN.right} y1={y(v)} y2={y(v)} />
-            <text className="tick" x={MARGIN.left - 8} y={y(v) + 3} textAnchor="end">
+            <text className="tick" x={MARGIN.left - 7} y={y(v) + 3} textAnchor="end">
               {Math.round(v / 1000)}k
             </text>
           </g>
@@ -92,13 +83,23 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
 
         <line className="zero-line" x1={MARGIN.left} x2={w - MARGIN.right} y1={zeroY} y2={zeroY} />
 
-        <path className="area" d={area} clipPath={`url(#${clipId}-above)`} />
-        <path className="area-negative" d={area} clipPath={`url(#${clipId}-below)`} />
         <path className="line" d={line} />
 
         {points.map((p, i) =>
+          i % dotStep === 0 ? (
+            <circle
+              key={p.month}
+              className={`dot ${p.closing < 0 ? 'below' : ''}`}
+              cx={x(i)}
+              cy={y(p.closing)}
+              r={2.6}
+            />
+          ) : null,
+        )}
+
+        {points.map((p, i) =>
           i % labelStep === 0 && i <= points.length - 1 - labelStep / 2 ? (
-            <text key={p.month} className="tick" x={x(i)} y={HEIGHT - 8} textAnchor="middle">
+            <text key={p.month} className="tick" x={x(i)} y={HEIGHT - 7} textAnchor="middle">
               {formatMonthShort(p.month)}
             </text>
           ) : null,
@@ -117,7 +118,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
               className={`marker ${selected.closing < 0 ? 'below' : ''}`}
               cx={x(active)}
               cy={y(selected.closing)}
-              r={5}
+              r={4}
             />
           </>
         )}

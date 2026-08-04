@@ -10,11 +10,11 @@ import { Income } from './ui/Income';
 import { Household } from './ui/Household';
 
 const TABS = [
-  { key: 'overview', label: 'Översikt', icon: '◎', View: Overview },
-  { key: 'costs', label: 'Kostnader', icon: '≡', View: RecurringCosts },
-  { key: 'oneoff', label: 'Engång', icon: '⌁', View: OneOffCosts },
-  { key: 'loans', label: 'Lån', icon: '▤', View: Loans },
-  { key: 'income', label: 'Inkomst', icon: '↓', View: Income },
+  { key: 'overview', label: 'Översikt', View: Overview },
+  { key: 'costs', label: 'Kostnader', View: RecurringCosts },
+  { key: 'oneoff', label: 'Engång', View: OneOffCosts },
+  { key: 'loans', label: 'Lån', View: Loans },
+  { key: 'income', label: 'Inkomst', View: Income },
 ] as const;
 
 function useHash() {
@@ -59,9 +59,6 @@ export default function App() {
             className={hash === t.key ? 'active' : ''}
             aria-current={hash === t.key ? 'page' : undefined}
           >
-            <span className="icon" aria-hidden="true">
-              {t.icon}
-            </span>
             {t.label}
           </a>
         ))}
