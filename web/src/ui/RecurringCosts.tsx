@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useBudget, newId } from '../store/store';
-import { CATEGORIES, INTERVALS, type RecurringCost } from '../domain/types';
-import { isCostPaused, monthlyAmount, pausedFrom, upcomingCharges } from '../domain/engine';
+import { CATEGORIES, INTERVALS, WEEK_INTERVALS, type RecurringCost } from '../domain/types';
+import {
+  intervalLabel,
+  isCostPaused,
+  monthlyAmount,
+  pausedFrom,
+  upcomingCharges,
+} from '../domain/engine';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort } from '../domain/month';
 import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet } from './components';
@@ -107,18 +113,15 @@ export function RecurringCosts() {
             <div className="list">
               {costs.map((cost) => {
                 const next = upcomingCharges(cost, currentMonth(), 12)[0];
-                const interval =
-                  INTERVALS.find((i) => i.value === cost.intervalMonths)?.label ??
-                  `Var ${cost.intervalMonths}:e månad`;
                 return (
                   <ListRow
                     key={cost.id}
                     title={cost.description}
                     badge={memberName(cost.payerId)}
                     subtitle={
-                      cost.intervalMonths === 1
-                        ? 'Varje månad'
-                        : `${sek(cost.amount)} · ${interval.toLowerCase()}${next ? ` · nästa ${formatMonthShort(next)}` : ''}`
+                      cost.intervalWeeks || cost.intervalMonths !== 1
+                        ? `${sek(cost.amount)} · ${intervalLabel(cost)}${next ? ` · nästa ${formatMonthShort(next)}` : ''}`
+                        : 'Varje månad'
                     }
                     amount={sek(monthlyAmount(cost))}
                     amountNote="/mån"
@@ -204,30 +207,64 @@ export function RecurringCosts() {
             </Field>
             <Field label="Hur ofta">
               <select
-                value={draft.intervalMonths}
-                onChange={(e) => setDraft({ ...draft, intervalMonths: Number(e.target.value) })}
+                value={draft.intervalWeeks ? `w${draft.intervalWeeks}` : `m${draft.intervalMonths}`}
+                onChange={(e) => {
+                  const [unit, n] = [e.target.value[0], Number(e.target.value.slice(1))];
+                  setDraft(
+                    unit === 'w'
+                      ? {
+                          ...draft,
+                          intervalWeeks: n,
+                          // A weekly cadence counts from a day, not a month.
+                          firstChargeDate: draft.firstChargeDate ?? `${draft.firstCharge}-01`,
+                        }
+                      : { ...draft, intervalWeeks: undefined, intervalMonths: n },
+                  );
+                }}
               >
-                {INTERVALS.map((i) => (
-                  <option key={i.value} value={i.value}>
-                    {i.label}
-                  </option>
-                ))}
+                <optgroup label="Månader">
+                  {INTERVALS.map((i) => (
+                    <option key={i.value} value={`m${i.value}`}>
+                      {i.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Veckor">
+                  {WEEK_INTERVALS.map((i) => (
+                    <option key={i.value} value={`w${i.value}`}>
+                      {i.label}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </Field>
           </div>
-          <Field
-            label="Första betalning"
-            hint={
-              draft.intervalMonths === 1
-                ? 'Dras varje månad.'
-                : `Dras sedan var ${draft.intervalMonths}:e månad räknat från den här månaden.`
-            }
-          >
-            <MonthInput
-              value={draft.firstCharge}
-              onChange={(v) => setDraft({ ...draft, firstCharge: v })}
-            />
-          </Field>
+          {draft.intervalWeeks ? (
+            <Field
+              label="Första betalning"
+              hint={`Dras sedan ${intervalLabel(draft)} räknat från det här datumet.`}
+            >
+              <input
+                type="date"
+                value={draft.firstChargeDate ?? ''}
+                onChange={(e) => setDraft({ ...draft, firstChargeDate: e.target.value })}
+              />
+            </Field>
+          ) : (
+            <Field
+              label="Första betalning"
+              hint={
+                draft.intervalMonths === 1
+                  ? 'Dras varje månad.'
+                  : `Dras sedan ${intervalLabel(draft)} räknat från den här månaden.`
+              }
+            >
+              <MonthInput
+                value={draft.firstCharge}
+                onChange={(v) => setDraft({ ...draft, firstCharge: v })}
+              />
+            </Field>
+          )}
           <Field
             label="Betalas av"
             hint="Gemensamt drar pengarna från det gemensamma kontot. Väljer du en person dras kostnaden i stället från den personens överföring."
@@ -239,9 +276,9 @@ export function RecurringCosts() {
             />
           </Field>
 
-          {draft.amount > 0 && draft.intervalMonths > 1 && (
+          {draft.amount > 0 && (draft.intervalWeeks || draft.intervalMonths > 1) && (
             <Note>
-              {sek(draft.amount)} var {draft.intervalMonths}:e månad blir{' '}
+              {sek(draft.amount)} {intervalLabel(draft)} blir{' '}
               <strong>{sek(monthlyAmount(draft))}/mån</strong> i budgeten. Uttagen sker i{' '}
               {upcomingCharges(draft, currentMonth(), 12)
                 .map(formatMonthShort)

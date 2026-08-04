@@ -28,6 +28,13 @@ public sealed record RecurringCost(
     string FirstCharge,
     string? PayerId,
     /// <summary>
+    /// Billing cadences like "every 8 weeks" do not land on a whole number of
+    /// months. When set this wins over IntervalMonths and FirstChargeDate is the
+    /// anchor instead of FirstCharge.
+    /// </summary>
+    int? IntervalWeeks = null,
+    string? FirstChargeDate = null,
+    /// <summary>
     /// On and off stretches. Null means always live, which is what every cost
     /// created before pausing existed looks like.
     /// </summary>

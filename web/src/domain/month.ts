@@ -54,3 +54,23 @@ export function monthRange(from: Month, to: Month): Month[] {
   for (let i = toIndex(from); i <= toIndex(to); i++) out.push(fromIndex(i));
   return out;
 }
+
+/* ---------- Dates, for cadences that are not whole months ---------- */
+
+/** Mean length of a year, so a weekly cadence converts to a monthly figure. */
+export const DAYS_PER_YEAR = 365.25;
+
+export function monthOf(date: string): Month {
+  return date.slice(0, 7);
+}
+
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Compares two YYYY-MM-DD strings; lexical order is chronological. */
+export function isBefore(a: string, b: string): boolean {
+  return a < b;
+}

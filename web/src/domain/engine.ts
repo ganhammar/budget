@@ -1,6 +1,15 @@
 import type { Budget, Loan, Month, OneOffCost, RecurringCost } from './types';
 import { activeMembers } from './types';
-import { addMonths, fromIndex, monthRange, monthsBetween, toIndex } from './month';
+import {
+  addDays,
+  addMonths,
+  DAYS_PER_YEAR,
+  fromIndex,
+  monthOf,
+  monthRange,
+  monthsBetween,
+  toIndex,
+} from './month';
 
 /* ---------- Recurring costs ---------- */
 
@@ -34,13 +43,59 @@ export function pausedFrom(cost: RecurringCost): Month | null {
 
 /** Smoothed monthly cost. This is what drives the split between members. */
 export function monthlyAmount(cost: RecurringCost): number {
+  if (cost.intervalWeeks && cost.intervalWeeks > 0) {
+    // Charges per year, spread over twelve. Eight weeks is 6.52 charges, not six.
+    const perYear = DAYS_PER_YEAR / (7 * cost.intervalWeeks);
+    return (cost.amount * perYear) / 12;
+  }
   return cost.amount / Math.max(1, cost.intervalMonths);
 }
 
-/** Whether the cost is actually charged in this month. */
-export function isChargedIn(cost: RecurringCost, month: Month): boolean {
+/**
+ * How many times the cost is charged in a month.
+ *
+ * A count rather than a yes/no, because a cadence shorter than a month can land
+ * twice in one: every four weeks does so roughly once a year, and the account
+ * forecast would be short by a whole charge if that month only counted once.
+ */
+export function chargesIn(cost: RecurringCost, month: Month): number {
+  if (cost.intervalWeeks && cost.intervalWeeks > 0) {
+    const start = cost.firstChargeDate;
+    if (!start) return 0;
+
+    const step = 7 * cost.intervalWeeks;
+    let date = start;
+    // Month strings sort chronologically, so this is a plain walk forward. A
+    // cadence measured in weeks has no closed form against calendar months.
+    while (monthOf(date) < month) date = addDays(date, step);
+
+    let count = 0;
+    while (monthOf(date) === month) {
+      count++;
+      date = addDays(date, step);
+    }
+    return count;
+  }
+
   const delta = monthsBetween(cost.firstCharge, month);
-  return delta >= 0 && delta % Math.max(1, cost.intervalMonths) === 0;
+  return delta >= 0 && delta % Math.max(1, cost.intervalMonths) === 0 ? 1 : 0;
+}
+
+/** Whether the cost is charged at all in this month. */
+export function isChargedIn(cost: RecurringCost, month: Month): boolean {
+  return chargesIn(cost, month) > 0;
+}
+
+/** How the cadence reads on a row, e.g. "var 8:e vecka". */
+export function intervalLabel(cost: RecurringCost): string {
+  if (cost.intervalWeeks && cost.intervalWeeks > 0) {
+    return cost.intervalWeeks === 1 ? 'varje vecka' : `var ${cost.intervalWeeks}:e vecka`;
+  }
+  if (cost.intervalMonths === 1) return 'varje månad';
+  if (cost.intervalMonths === 12) return 'årsvis';
+  if (cost.intervalMonths === 3) return 'kvartalsvis';
+  if (cost.intervalMonths === 6) return 'halvårsvis';
+  return `var ${cost.intervalMonths}:e månad`;
 }
 
 /** Upcoming charge months, for display in the list. */
@@ -324,8 +379,13 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   // Actual cash flow on the joint account: lumpy, not smoothed.
   const outflowItems: { label: string; amount: number }[] = [];
   for (const cost of liveCosts) {
-    if (cost.payerId || !isChargedIn(cost, month)) continue;
-    outflowItems.push({ label: cost.description, amount: cost.amount });
+    if (cost.payerId) continue;
+    const times = chargesIn(cost, month);
+    if (times === 0) continue;
+    outflowItems.push({
+      label: times > 1 ? `${cost.description} (${times}×)` : cost.description,
+      amount: cost.amount * times,
+    });
   }
   for (const cost of budget.oneOffCosts) {
     if (cost.payerId || cost.start !== month) continue;

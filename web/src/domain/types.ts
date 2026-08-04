@@ -58,8 +58,18 @@ export interface RecurringCost {
   category: string;
   description: string;
   amount: number;
+  /** Ignored when `intervalWeeks` is set. */
   intervalMonths: number;
+  /**
+   * Billing cadences like "every 8 weeks" do not land on a whole number of months,
+   * so they need their own unit and a real date to count from. When set, this wins
+   * over `intervalMonths` and `firstChargeDate` is used instead of `firstCharge`.
+   */
+  intervalWeeks?: number;
+  /** Anchor for month-based costs. */
   firstCharge: Month;
+  /** Anchor for week-based costs, as YYYY-MM-DD. */
+  firstChargeDate?: string;
   /** When set, this member pays directly and the cost never touches the joint account. */
   payerId?: string;
   /**
@@ -145,6 +155,16 @@ export function activeMembers(budget: Budget): Member[] {
 
 /** User-facing category labels, so these stay Swedish. */
 export const CATEGORIES = ['Hus', 'Barn', 'Mat', 'Media', 'Husdjur', 'Bil', 'Övrigt'];
+
+/** Week-based cadences, for billing that does not align to months. */
+export const WEEK_INTERVALS: { value: number; label: string }[] = [
+  { value: 1, label: 'Varje vecka' },
+  { value: 2, label: 'Varannan vecka' },
+  { value: 4, label: 'Var 4:e vecka' },
+  { value: 6, label: 'Var 6:e vecka' },
+  { value: 8, label: 'Var 8:e vecka' },
+  { value: 12, label: 'Var 12:e vecka' },
+];
 
 export const INTERVALS: { value: number; label: string }[] = [
   { value: 1, label: 'Varje månad' },
