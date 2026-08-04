@@ -1,19 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useWidth, usePointerIndex } from './chart';
 import type { ForecastPoint } from '../domain/engine';
 import { sek } from '../domain/format';
 import { formatMonth, formatMonthShort } from '../domain/month';
-
-function useWidth<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-  return { ref, width };
-}
 
 const MARGIN = { top: 12, right: 8, bottom: 22, left: 46 };
 const HEIGHT = 190;
@@ -23,13 +11,19 @@ const ITEM_SLOTS = [0, 1, 2];
 
 export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const { ref, width } = useWidth<HTMLDivElement>();
-  const [active, setActive] = useState<number | null>(null);
 
-  if (points.length < 2) return null;
-
+  // Sizes and the pointer hook come before the early return: hooks cannot run
+  // conditionally, and these depend only on the measured width.
   const w = Math.max(width, 280);
   const plotW = w - MARGIN.left - MARGIN.right;
   const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
+
+  const { active, handlers } = usePointerIndex(points.length, (clientX, rect) => {
+    const px = ((clientX - rect.left) / rect.width) * w;
+    return Math.round(((px - MARGIN.left) / plotW) * (points.length - 1));
+  });
+
+  if (points.length < 2) return null;
 
   const values = points.map((p) => p.closing);
   const rawMin = Math.min(0, ...values);
@@ -50,13 +44,6 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const dotStep = Math.max(1, Math.ceil(points.length / Math.max(4, Math.floor(plotW / 26))));
   const labelStep = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotW / 46))));
 
-  function onPointer(e: React.PointerEvent<SVGSVGElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * w;
-    const i = Math.round(((px - MARGIN.left) / plotW) * (points.length - 1));
-    setActive(Math.max(0, Math.min(points.length - 1, i)));
-  }
-
   const selected = active === null ? null : points[active];
   const firstNegative = points.find((p) => p.closing < 0);
 
@@ -67,8 +54,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
         width="100%"
         height={HEIGHT}
         viewBox={`0 0 ${w} ${HEIGHT}`}
-        onPointerMove={onPointer}
-        onPointerLeave={() => setActive(null)}
+        {...handlers}
         role="img"
         aria-label="Prognos för saldot på gemensamt konto"
       >

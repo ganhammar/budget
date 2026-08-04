@@ -1,20 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useWidth, usePointerIndex } from './chart';
 import type { DebtPoint } from '../domain/engine';
 import type { Loan } from '../domain/types';
 import { sek } from '../domain/format';
 import { formatMonth, formatMonthShort } from '../domain/month';
-
-function useWidth<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-  return { ref, width };
-}
 
 // Right margin holds the direct labels: identity comes from the name at the end
 // of each line, not from its shade.
@@ -45,13 +33,19 @@ interface ChartProps {
 
 export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   const { ref, width } = useWidth<HTMLDivElement>();
-  const [active, setActive] = useState<number | null>(null);
 
-  if (points.length < 2 || loans.length === 0) return null;
-
+  // Sizes and the pointer hook come before the early return: hooks cannot run
+  // conditionally, and these depend only on the measured width.
   const w = Math.max(width, 280);
   const plotW = w - MARGIN.left - MARGIN.right;
   const plotH = HEIGHT - MARGIN.top - MARGIN.bottom;
+
+  const { active, handlers } = usePointerIndex(points.length, (clientX, rect) => {
+    const px = ((clientX - rect.left) / rect.width) * w;
+    return Math.round(((px - MARGIN.left) / plotW) * (points.length - 1));
+  });
+
+  if (points.length < 2 || loans.length === 0) return null;
 
   // Each loan on its own line against a shared scale, so a small loan is still a
   // visible trajectory rather than a sliver of a stack.
@@ -86,13 +80,6 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
     })
     .filter((s) => s.show);
 
-  function onPointer(e: React.PointerEvent<SVGSVGElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const px = ((e.clientX - rect.left) / rect.width) * w;
-    const i = Math.round(((px - MARGIN.left) / plotW) * (points.length - 1));
-    setActive(Math.max(0, Math.min(points.length - 1, i)));
-  }
-
   const selected = active === null ? null : points[active];
   const shown = selected ?? points[0];
   const total = loans.reduce((sum, l) => sum + (shown.debts[l.id] ?? 0), 0);
@@ -104,8 +91,7 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
         width="100%"
         height={HEIGHT}
         viewBox={`0 0 ${w} ${HEIGHT}`}
-        onPointerMove={onPointer}
-        onPointerLeave={() => setActive(null)}
+        {...handlers}
         role="img"
         aria-label="Skuld per lån över tid"
       >

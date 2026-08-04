@@ -405,6 +405,25 @@ body {
   line-height: 1.45;
 }
 
+/* A multi-select is a list rather than a line, so it gets a box. */
+select[multiple] {
+  border: 1px solid var(--rule-strong);
+  padding: 4px 2px;
+}
+
+select[multiple] option {
+  padding: 3px 6px;
+  line-height: 1.35;
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+select[multiple] option:checked {
+  background: var(--wash);
+  color: var(--ink);
+  font-weight: 600;
+}
+
 input,
 select {
   font: inherit;
@@ -517,7 +536,17 @@ select:focus {
 
 .chart {
   width: 100%;
+  /* pan-y keeps vertical page scrolling working while we take the horizontal
+     gesture. The rest stops a long press selecting the axis labels or raising the
+     iOS callout, which is what happened instead of reading the chart. */
   touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.chart text {
+  pointer-events: none;
 }
 
 .chart .gridline {

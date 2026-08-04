@@ -61,12 +61,6 @@ export function Loans() {
 
   const memberName = (id?: string) => budget.members.find((m) => m.id === id)?.name;
 
-  function toggle(loanId: string) {
-    setHidden((current) =>
-      current.includes(loanId) ? current.filter((id) => id !== loanId) : [...current, loanId],
-    );
-  }
-
   function saveLoan() {
     if (!loanDraft || !loanDraft.description.trim()) return;
     update((b) => ({
@@ -139,19 +133,26 @@ export function Loans() {
             </button>
           }
         >
-          <div className="chip-row">
-            {budget.loans.map((loan) => (
-              <button
-                key={loan.id}
-                type="button"
-                className={`chip ${hidden.includes(loan.id) ? '' : 'on'}`}
-                aria-pressed={!hidden.includes(loan.id)}
-                onClick={() => toggle(loan.id)}
-              >
-                {loan.description}
-              </button>
-            ))}
-          </div>
+          <Field
+            label="Visa lån"
+            hint="Tryck för att välja, cmd eller ctrl för flera på dator. Nya lån visas automatiskt."
+          >
+            <select
+              multiple
+              size={Math.min(5, Math.max(2, budget.loans.length))}
+              value={shown.map((l) => l.id)}
+              onChange={(e) => {
+                const chosen = [...e.target.selectedOptions].map((o) => o.value);
+                setHidden(budget.loans.filter((l) => !chosen.includes(l.id)).map((l) => l.id));
+              }}
+            >
+              {budget.loans.map((loan) => (
+                <option key={loan.id} value={loan.id}>
+                  {loan.description}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           {shown.length === 0 ? (
             <Empty text="Välj minst ett lån." />
