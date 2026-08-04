@@ -88,9 +88,7 @@ body {
   gap: 12px;
   padding: 18px 20px 10px;
   background: var(--paper);
-  /* Full-strength ink, thicker than any rule inside the page, so the frame reads
-     clearly as chrome rather than as another section divider. */
-  border-bottom: 3px solid var(--ink);
+  border-bottom: 1.5px solid var(--rule-strong);
 }
 
 .topbar h1 {
@@ -123,7 +121,7 @@ body {
   gap: 22px;
   padding: 13px 20px calc(15px + env(safe-area-inset-bottom));
   background: var(--paper);
-  border-top: 3px solid var(--ink);
+  border-top: 1.5px solid var(--rule-strong);
 }
 
 .nav a {
