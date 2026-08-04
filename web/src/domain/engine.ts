@@ -4,6 +4,34 @@ import { addMonths, fromIndex, monthRange, monthsBetween, toIndex } from './mont
 
 /* ---------- Recurring costs ---------- */
 
+/**
+ * Whether a recurring cost is live in a month. Absent periods mean always live.
+ *
+ * Pausing is expressed as a closed period rather than a flag, because a flag would
+ * remove the cost from every month including the ones it was actually paid in, and
+ * the whole point is that past months keep their figures.
+ */
+export function isCostLiveIn(cost: RecurringCost, month: Month): boolean {
+  if (!cost.periods || cost.periods.length === 0) return true;
+  return cost.periods.some(
+    (p) =>
+      (!p.from || monthsBetween(p.from, month) >= 0) &&
+      (!p.to || monthsBetween(month, p.to) > 0),
+  );
+}
+
+/** Live right now, which is what the list hides when you pause something. */
+export function isCostPaused(cost: RecurringCost, month: Month): boolean {
+  return !isCostLiveIn(cost, month);
+}
+
+/** The month a paused cost stopped counting, for showing on the row. */
+export function pausedFrom(cost: RecurringCost): Month | null {
+  const closed = (cost.periods ?? []).filter((p) => p.to);
+  if (closed.length === 0) return null;
+  return closed.map((p) => p.to!).sort().at(-1) ?? null;
+}
+
 /** Smoothed monthly cost. This is what drives the split between members. */
 export function monthlyAmount(cost: RecurringCost): number {
   return cost.amount / Math.max(1, cost.intervalMonths);
@@ -262,7 +290,8 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
     line.total = line.interest + line.amortization;
   }
 
-  const recurringTotal = budget.recurringCosts.reduce((sum, c) => sum + monthlyAmount(c), 0);
+  const liveCosts = budget.recurringCosts.filter((c) => isCostLiveIn(c, month));
+  const recurringTotal = liveCosts.reduce((sum, c) => sum + monthlyAmount(c), 0);
   const activeOneOffs = budget.oneOffCosts.filter((c) => isActiveIn(c, month));
   const oneOffTotal = activeOneOffs.reduce((sum, c) => sum + monthlyShare(c), 0);
   const loanTotal = loanLines.reduce((sum, l) => sum + l.total, 0);
@@ -276,7 +305,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   const memberLines: MemberLine[] = members.map((member) => {
     const income = incomeFor(budget, member.id, month);
     const paidDirectly =
-      budget.recurringCosts
+      liveCosts
         .filter((c) => c.payerId === member.id)
         .reduce((sum, c) => sum + monthlyAmount(c), 0) +
       activeOneOffs.filter((c) => c.payerId === member.id).reduce((s, c) => s + monthlyShare(c), 0) +
@@ -294,7 +323,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
 
   // Actual cash flow on the joint account: lumpy, not smoothed.
   const outflowItems: { label: string; amount: number }[] = [];
-  for (const cost of budget.recurringCosts) {
+  for (const cost of liveCosts) {
     if (cost.payerId || !isChargedIn(cost, month)) continue;
     outflowItems.push({ label: cost.description, amount: cost.amount });
   }

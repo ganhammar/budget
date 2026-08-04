@@ -39,6 +39,16 @@ export interface IncomeEntry {
 }
 
 /**
+ * A stretch during which a cost is live. `from` is inclusive and `to` is exclusive,
+ * matching the one-off convention. Either end may be open: no `from` means it has
+ * run since before anyone was counting, no `to` means it is still running.
+ */
+export interface ActivePeriod {
+  from?: Month;
+  to?: Month;
+}
+
+/**
  * A recurring cost. `amount` is what gets charged each time and `intervalMonths`
  * how often. The budgeted monthly figure is amount / intervalMonths, while the
  * actual withdrawal happens in the months implied by `firstCharge`.
@@ -52,6 +62,12 @@ export interface RecurringCost {
   firstCharge: Month;
   /** When set, this member pays directly and the cost never touches the joint account. */
   payerId?: string;
+  /**
+   * On and off stretches. Absent means it has always been live, which is what
+   * every cost created before pausing existed looks like. Pausing closes the open
+   * period; resuming opens a new one, so a gap stays a gap in past months.
+   */
+  periods?: ActivePeriod[];
 }
 
 /**

@@ -13,6 +13,12 @@ public sealed record Member(
 
 public sealed record IncomeEntry(string MemberId, string Month, decimal Amount, string? EnteredById);
 
+/// <summary>
+/// A stretch during which a cost is live. `From` is inclusive, `To` exclusive, and
+/// either may be null for an open end.
+/// </summary>
+public sealed record ActivePeriod(string? From, string? To);
+
 public sealed record RecurringCost(
     string Id,
     string Category,
@@ -20,7 +26,12 @@ public sealed record RecurringCost(
     decimal Amount,
     int IntervalMonths,
     string FirstCharge,
-    string? PayerId);
+    string? PayerId,
+    /// <summary>
+    /// On and off stretches. Null means always live, which is what every cost
+    /// created before pausing existed looks like.
+    /// </summary>
+    List<ActivePeriod>? Periods = null);
 
 public sealed record OneOffCost(
     string Id,
