@@ -18,7 +18,6 @@ function normalize(budget: Budget): Budget {
     loans: budget.loans ?? [],
     amortizationStreams: budget.amortizationStreams ?? [],
     income: budget.income ?? [],
-    dismissedPrompts: budget.dismissedPrompts ?? [],
     accountBalance: budget.accountBalance ?? null,
   };
 }

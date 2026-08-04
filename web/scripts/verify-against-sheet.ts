@@ -90,7 +90,6 @@ function buildBudget(rate: number): Budget {
       },
     ],
     income: [],
-    dismissedPrompts: [],
     accountBalance: { month: MONTH, amount: 25000 },
   };
 }
@@ -205,13 +204,8 @@ expect(
   true,
 );
 
-const dismissed: Budget = { ...base, dismissedPrompts: [{ memberId: ANTON, month: MONTH }] };
-expect('stops once dismissed', shouldPromptForIncome(dismissed, ANTON, MONTH, 15), false);
-expect(
-  'dismissal does not carry to next month',
-  shouldPromptForIncome(dismissed, ANTON, '2026-09', 15),
-  true,
-);
+// Closing the banner is component state that lasts for the session, so it does not
+// appear here and never suppresses the reminder emails.
 
 // An admin filling in on someone's behalf counts as answered for them.
 const filledByAdmin: Budget = {

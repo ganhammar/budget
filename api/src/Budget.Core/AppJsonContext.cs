@@ -16,7 +16,6 @@ namespace Budget.Api;
 [JsonSerializable(typeof(Loan))]
 [JsonSerializable(typeof(AmortizationStream))]
 [JsonSerializable(typeof(IncomeEntry))]
-[JsonSerializable(typeof(DismissedPrompt))]
 [JsonSerializable(typeof(AccountBalance))]
 [JsonSerializable(typeof(UserProfile))]
 [JsonSerializable(typeof(CreateHouseholdRequest))]
@@ -25,4 +24,4 @@ namespace Budget.Api;
 [JsonSerializable(typeof(PutIncomeRequest))]
 [JsonSerializable(typeof(MeResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
-internal sealed partial class AppJsonContext : JsonSerializerContext;
+public sealed partial class AppJsonContext : JsonSerializerContext;

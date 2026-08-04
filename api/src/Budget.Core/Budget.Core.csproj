@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Budget.Api</RootNamespace>
+
+    <!-- Consumed by two Native AOT executables, so hold it to the same bar. -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="4.0.102.1" />
+    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.101" />
+  </ItemGroup>
+
+</Project>

@@ -17,6 +17,7 @@ api/**/[Oo]bj/
 
 # Lambda build output
 api/publish/
+api/publish-reminders/
 
 # CDK
 infra/cdk.out

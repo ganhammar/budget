@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Budget.Api/Budget.Api.csproj" />
+    <Project Path="src/Budget.Core/Budget.Core.csproj" />
+    <Project Path="src/Budget.Reminders/Budget.Reminders.csproj" />
   </Folder>
 </Solution>

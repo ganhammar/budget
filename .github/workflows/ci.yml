@@ -25,16 +25,24 @@ jobs:
       - name: Publish Native AOT
         run: AOT=true ./api/scripts/publish.sh
 
-      - name: Verify the artifact
+      - name: Verify the artifacts
         run: |
-          test -x api/publish/bootstrap
-          file api/publish/bootstrap | tee /dev/stderr | grep -q 'ARM aarch64'
-          echo "Size: $(du -h api/publish/bootstrap | cut -f1)"
+          for dir in api/publish api/publish-reminders; do
+            test -x "$dir/bootstrap"
+            file "$dir/bootstrap" | tee /dev/stderr | grep -q 'ARM aarch64'
+            echo "$dir: $(du -h "$dir/bootstrap" | cut -f1)"
+          done
 
       - uses: actions/upload-artifact@v7
         with:
           name: api-aot-linux-arm64
           path: api/publish/
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: reminders-aot-linux-arm64
+          path: api/publish-reminders/
           retention-days: 7
 
   web:
@@ -73,10 +81,15 @@ jobs:
           name: api-aot-linux-arm64
           path: api/publish
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: reminders-aot-linux-arm64
+          path: api/publish-reminders
+
       - name: Restore the executable bit
         # Artifacts do not preserve file modes, and provided.al2023 will not run a
         # bootstrap that is not executable.
-        run: chmod +x api/publish/bootstrap
+        run: chmod +x api/publish/bootstrap api/publish-reminders/bootstrap
 
       - uses: actions/setup-node@v7
         with:

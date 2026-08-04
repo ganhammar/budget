@@ -13,7 +13,11 @@ export function IncomeBanner() {
   const { budget, me, update } = useBudget();
   const month = currentMonth();
   const [amount, setAmount] = useState<number | ''>(me.baselineIncome || '');
+  // Closing it lasts for this visit only. It is a reminder, so one stray tap
+  // should not silence it for the rest of the month.
+  const [closed, setClosed] = useState(false);
 
+  if (closed) return null;
   if (!shouldPromptForIncome(budget, me.id, month, currentDayOfMonth())) return null;
 
   function confirm() {
@@ -28,10 +32,7 @@ export function IncomeBanner() {
   }
 
   function dismiss() {
-    update((b) => ({
-      ...b,
-      dismissedPrompts: [...b.dismissedPrompts, { memberId: me.id, month }],
-    }));
+    setClosed(true);
   }
 
   return (

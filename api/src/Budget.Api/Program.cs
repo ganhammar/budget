@@ -4,6 +4,7 @@ using Amazon.DynamoDBv2;
 using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
+using Amazon.SimpleEmailV2;
 using Budget.Api;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -26,6 +27,9 @@ var tableName = builder.Configuration["TABLE_NAME"] ?? "budget";
 var dynamoEndpoint = builder.Configuration["DYNAMODB_ENDPOINT"];
 var googleClientId = builder.Configuration["GOOGLE_CLIENT_ID"] ?? "";
 var sessionSecretArn = builder.Configuration["SESSION_SECRET_ARN"];
+var fromAddress = builder.Configuration["FROM_ADDRESS"] ?? "budget@ganhammar.se";
+var appUrl = builder.Configuration["APP_URL"] ?? "https://budget.ganhammar.se";
+var emailEnabled = builder.Configuration["EMAIL_ENABLED"] != "false";
 
 builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 {
@@ -37,6 +41,8 @@ builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 
 builder.Services.AddSingleton(sp => new BudgetStore(sp.GetRequiredService<IAmazonDynamoDB>(), tableName));
 builder.Services.AddSingleton(new GoogleTokenValidator(new HttpClient(), googleClientId));
+builder.Services.AddSingleton(new EmailSender(
+    new AmazonSimpleEmailServiceV2Client(), fromAddress, appUrl));
 
 // Fetched once during cold start rather than per request. Falls back to a derived
 // key locally so `dotnet run` works without any AWS access.
@@ -162,7 +168,8 @@ api.MapPut("/account-balance", async (
 // Members are the one collection with a side effect: the email has to be mapped to
 // the household, or an invited person signs in successfully and finds nothing.
 api.MapPut("/members/{id}", async (
-    string id, Member body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+    string id, Member body, HttpContext ctx, BudgetStore s, SessionTokens t,
+    EmailSender mail, CancellationToken ct) =>
 {
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
@@ -173,10 +180,32 @@ api.MapPut("/members/{id}", async (
     if (existing is not null && existing.HouseholdId != caller.HouseholdId)
         return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
 
+    var isNew = existing is null;
     await s.PutMemberAsync(caller.HouseholdId, member, ct);
 
-    if (existing is null)
+    if (isNew)
+    {
         await s.PutProfileAsync(new UserProfile(member.Email, caller.HouseholdId, id), ct);
+
+        // Only on the first write, so editing a member later does not re-invite them.
+        if (emailEnabled && member.Status == "invited")
+        {
+            var meta = await s.GetMetaAsync(caller.HouseholdId, ct);
+            var invite = Messages.Invite(
+                meta?.Household.Name ?? "hushållet",
+                caller.Member?.Name ?? "Någon",
+                mail.AppUrl);
+            try
+            {
+                await mail.SendAsync(member.Email, invite.Subject, invite.Body, ct);
+            }
+            catch (Exception ex)
+            {
+                // The member is already saved; failing the request would be worse.
+                app.Logger.LogError(ex, "Could not send invite to {Email}", member.Email);
+            }
+        }
+    }
 
     return Results.NoContent();
 });
@@ -229,13 +258,6 @@ api.MapDelete("/income/{month}/{memberId}", async (
     string month, string memberId, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
     await Write(ctx, s, t, ct, h => s.DeleteIncomeAsync(h, month, memberId, ct)));
 
-api.MapPut("/dismissals/{month}/{memberId}", async (
-    string month, string memberId, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
-    await Write(ctx, s, t, ct, h => s.PutDismissalAsync(h, new DismissedPrompt(memberId, month), ct)));
-
-api.MapDelete("/dismissals/{month}/{memberId}", async (
-    string month, string memberId, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
-    await Write(ctx, s, t, ct, h => s.DeleteDismissalAsync(h, month, memberId, ct)));
 
 app.Run();
 return;

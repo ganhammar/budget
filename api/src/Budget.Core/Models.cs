@@ -13,8 +13,6 @@ public sealed record Member(
 
 public sealed record IncomeEntry(string MemberId, string Month, decimal Amount, string? EnteredById);
 
-public sealed record DismissedPrompt(string MemberId, string Month);
-
 public sealed record RecurringCost(
     string Id,
     string Category,
@@ -63,7 +61,6 @@ public sealed record BudgetDto(
     List<Loan> Loans,
     List<AmortizationStream> AmortizationStreams,
     List<IncomeEntry> Income,
-    List<DismissedPrompt> DismissedPrompts,
     AccountBalance? AccountBalance);
 
 /// <summary>Maps a sign-in identity to its household. Replaced by JWT claims later.</summary>

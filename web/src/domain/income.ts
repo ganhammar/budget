@@ -16,13 +16,10 @@ export function hasConfirmedIncome(budget: Budget, memberId: string, month: Mont
   return budget.income.some((i) => i.memberId === memberId && i.month === month);
 }
 
-export function isPromptDismissed(budget: Budget, memberId: string, month: Month): boolean {
-  return budget.dismissedPrompts.some((d) => d.memberId === memberId && d.month === month);
-}
-
 /**
- * The banner is per viewer: it asks you about your own income only, and stays
- * closed once you have answered or dismissed it for that month.
+ * The banner is per viewer: it asks you about your own income only, and stops once
+ * you have answered. Closing it is handled in the component and lasts for the
+ * session only, so it comes back on the next visit until the figure is entered.
  */
 export function shouldPromptForIncome(
   budget: Budget,
@@ -32,8 +29,7 @@ export function shouldPromptForIncome(
 ): boolean {
   if (dayOfMonth < INCOME_PROMPT_DAY) return false;
   if (!activeMembers(budget).some((m) => m.id === memberId)) return false;
-  if (hasConfirmedIncome(budget, memberId, month)) return false;
-  return !isPromptDismissed(budget, memberId, month);
+  return !hasConfirmedIncome(budget, memberId, month);
 }
 
 /** Active members who have not confirmed a figure for the month yet. */

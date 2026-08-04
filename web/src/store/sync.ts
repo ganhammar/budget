@@ -33,13 +33,6 @@ export function planSync(previous: Budget, next: Budget): Promise<unknown>[] {
     (entry) => calls.push(api.putIncome(entry.month, entry.memberId, entry.amount, entry.enteredById ?? undefined)),
     (entry) => calls.push(api.deleteIncome(entry.month, entry.memberId)),
   );
-  diff(
-    previous.dismissedPrompts,
-    next.dismissedPrompts,
-    incomeKey,
-    (entry) => calls.push(api.putDismissal(entry.month, entry.memberId)),
-    (entry) => calls.push(api.deleteDismissal(entry.month, entry.memberId)),
-  );
 
   if (previous.household.name !== next.household.name) {
     calls.push(api.renameHousehold(next.household.name));

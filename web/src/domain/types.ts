@@ -38,12 +38,6 @@ export interface IncomeEntry {
   enteredById?: string;
 }
 
-/** A member closing the monthly income banner, so it stays closed across devices. */
-export interface DismissedPrompt {
-  memberId: string;
-  month: Month;
-}
-
 /**
  * A recurring cost. `amount` is what gets charged each time and `intervalMonths`
  * how often. The budgeted monthly figure is amount / intervalMonths, while the
@@ -124,7 +118,6 @@ export interface Budget {
   loans: Loan[];
   amortizationStreams: AmortizationStream[];
   income: IncomeEntry[];
-  dismissedPrompts: DismissedPrompt[];
   /** Actual balance of the joint account, the starting point for the forecast. */
   accountBalance: AccountBalance | null;
 }

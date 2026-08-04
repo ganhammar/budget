@@ -16,11 +16,16 @@ import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as scheduler from 'aws-cdk-lib/aws-scheduler';
 import { Construct } from 'constructs';
 
 const ROOT = path.join(__dirname, '..', '..');
 
 const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'budget.ganhammar.se';
+const FROM_ADDRESS = process.env.FROM_ADDRESS ?? 'budget@ganhammar.se';
+/** Days of the month the income reminder goes out, in Swedish local time. */
+const REMINDER_DAYS = [22, 25, 27];
 
 // CloudFront only accepts certificates from us-east-1 regardless of stack region.
 // DNS lives in Cloudflare, so this was requested and validated by hand rather than
@@ -74,11 +79,62 @@ export class BudgetStack extends Stack {
         TABLE_NAME: table.tableName,
         GOOGLE_CLIENT_ID: googleClientId,
         SESSION_SECRET_ARN: sessionSecret.secretArn,
+        FROM_ADDRESS: FROM_ADDRESS,
+        APP_URL: `https://${SITE_DOMAIN}`,
       },
     });
 
     table.grantReadWriteData(api);
     sessionSecret.grantRead(api);
+
+    /* ---------- Monthly income reminders ---------- */
+
+    const reminders = new lambda.Function(this, 'Reminders', {
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'bootstrap',
+      code: lambda.Code.fromAsset(path.join(ROOT, 'api', 'publish-reminders')),
+      memorySize: 512,
+      timeout: Duration.minutes(2),
+      environment: {
+        TABLE_NAME: table.tableName,
+        FROM_ADDRESS: FROM_ADDRESS,
+        APP_URL: `https://${SITE_DOMAIN}`,
+      },
+    });
+
+    table.grantReadData(reminders);
+
+    // Scoped to the one verified identity rather than ses:SendEmail on *.
+    const sendEmail = new iam.PolicyStatement({
+      actions: ['ses:SendEmail'],
+      resources: [
+        `arn:aws:ses:${this.region}:${this.account}:identity/${FROM_ADDRESS.split('@')[1]}`,
+      ],
+    });
+    api.addToRolePolicy(sendEmail);
+    reminders.addToRolePolicy(sendEmail);
+
+    const schedulerRole = new iam.Role(this, 'SchedulerRole', {
+      assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
+    });
+    reminders.grantInvoke(schedulerRole);
+
+    REMINDER_DAYS.forEach((day, index) => {
+      new scheduler.CfnSchedule(this, `Reminder${day}`, {
+        flexibleTimeWindow: { mode: 'OFF' },
+        scheduleExpression: `cron(0 8 ${day} * ? *)`,
+        // EventBridge Rules cannot do this; only Scheduler honours a timezone, and
+        // without it "the 22nd" drifts an hour twice a year.
+        scheduleExpressionTimezone: 'Europe/Stockholm',
+        target: {
+          arn: reminders.functionArn,
+          roleArn: schedulerRole.roleArn,
+          input: JSON.stringify({ final: index === REMINDER_DAYS.length - 1 }),
+          retryPolicy: { maximumRetryAttempts: 2 },
+        },
+      });
+    });
 
     // A Lambda function URL behind CloudFront OAC looks tempting, but OAC signs the
     // request without the body, so every POST/PUT fails SigV4 validation with a 403.
@@ -133,5 +189,6 @@ export class BudgetStack extends Stack {
     new CfnOutput(this, 'SiteUrl', { value: `https://${distribution.distributionDomainName}` });
     new CfnOutput(this, 'TableName', { value: table.tableName });
     new CfnOutput(this, 'ApiFunctionName', { value: api.functionName });
+    new CfnOutput(this, 'RemindersFunctionName', { value: reminders.functionName });
   }
 }

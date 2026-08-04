@@ -83,6 +83,46 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
         return JsonSerializer.Deserialize(data.S, AppJsonContext.Default.Member);
     }
 
+    /* ---------- All households ---------- */
+
+    /// <summary>
+    /// Every household id. A scan rather than an index: there is no access pattern
+    /// that lists households except the monthly reminder job, and at household
+    /// scale a filtered scan costs less than carrying a GSI.
+    /// </summary>
+    public async Task<List<string>> ListHouseholdIdsAsync(CancellationToken ct)
+    {
+        var ids = new List<string>();
+        Dictionary<string, AttributeValue>? startKey = null;
+
+        do
+        {
+            var page = await client.ScanAsync(
+                new ScanRequest
+                {
+                    TableName = tableName,
+                    FilterExpression = "sk = :meta",
+                    ProjectionExpression = "pk",
+                    ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                    {
+                        [":meta"] = S(Meta),
+                    },
+                    ExclusiveStartKey = startKey,
+                },
+                ct);
+
+            foreach (var item in page.Items)
+            {
+                var pk = item["pk"].S;
+                if (pk.StartsWith("HH#", StringComparison.Ordinal)) ids.Add(pk[3..]);
+            }
+
+            startKey = page.LastEvaluatedKey is { Count: > 0 } ? page.LastEvaluatedKey : null;
+        } while (startKey is not null);
+
+        return ids;
+    }
+
     /* ---------- Whole budget ---------- */
 
     public async Task<BudgetDto?> GetBudgetAsync(string householdId, CancellationToken ct)
@@ -93,7 +133,6 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
         var loans = new List<Loan>();
         var streams = new List<AmortizationStream>();
         var income = new List<IncomeEntry>();
-        var dismissals = new List<DismissedPrompt>();
         BudgetMeta? meta = null;
 
         Dictionary<string, AttributeValue>? startKey = null;
@@ -131,8 +170,6 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
                     Add(streams, JsonSerializer.Deserialize(json, AppJsonContext.Default.AmortizationStream));
                 else if (sk.StartsWith("INCOME#", StringComparison.Ordinal))
                     Add(income, JsonSerializer.Deserialize(json, AppJsonContext.Default.IncomeEntry));
-                else if (sk.StartsWith("DISMISS#", StringComparison.Ordinal))
-                    Add(dismissals, JsonSerializer.Deserialize(json, AppJsonContext.Default.DismissedPrompt));
             }
 
             startKey = page.LastEvaluatedKey is { Count: > 0 } ? page.LastEvaluatedKey : null;
@@ -148,7 +185,6 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
             loans,
             streams,
             income,
-            dismissals,
             meta.AccountBalance);
 
         static void Add<T>(List<T> list, T? value)
@@ -228,10 +264,4 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
     public Task DeleteIncomeAsync(string householdId, string month, string memberId, CancellationToken ct) =>
         Delete(HouseholdKey(householdId), $"INCOME#{month}#{memberId}", ct);
 
-    public Task PutDismissalAsync(string householdId, DismissedPrompt prompt, CancellationToken ct) =>
-        Put(HouseholdKey(householdId), $"DISMISS#{prompt.Month}#{prompt.MemberId}",
-            JsonSerializer.Serialize(prompt, AppJsonContext.Default.DismissedPrompt), ct);
-
-    public Task DeleteDismissalAsync(string householdId, string month, string memberId, CancellationToken ct) =>
-        Delete(HouseholdKey(householdId), $"DISMISS#{month}#{memberId}", ct);
 }

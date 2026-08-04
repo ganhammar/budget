@@ -88,9 +88,4 @@ export const api = {
   deleteIncome: (month: string, memberId: string) =>
     request<void>(`/income/${month}/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
 
-  putDismissal: (month: string, memberId: string) =>
-    request<void>(`/dismissals/${month}/${encodeURIComponent(memberId)}`, { method: 'PUT' }),
-
-  deleteDismissal: (month: string, memberId: string) =>
-    request<void>(`/dismissals/${month}/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
 };
