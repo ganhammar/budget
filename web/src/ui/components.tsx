@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 export function Card({
@@ -184,5 +184,94 @@ export function PayerSelect({
           </option>
         ))}
     </select>
+  );
+}
+
+/**
+ * Collapsed multi-select. A native `select multiple` is always open and eats most
+ * of a phone screen, and there is no native control that both collapses and takes
+ * several values.
+ */
+export function MultiSelect({
+  label,
+  hint,
+  options,
+  selected,
+  onChange,
+  allLabel,
+}: {
+  label: string;
+  hint?: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  allLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const summary =
+    selected.length === options.length
+      ? allLabel
+      : selected.length === 0
+        ? 'Inget valt'
+        : selected.length <= 2
+          ? options
+              .filter((o) => selected.includes(o.value))
+              .map((o) => o.label)
+              .join(', ')
+          : `${selected.length} av ${options.length}`;
+
+  function toggle(value: string) {
+    onChange(
+      selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value],
+    );
+  }
+
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <div className="dropdown" ref={wrap}>
+        <button
+          type="button"
+          className="dropdown-trigger"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span>{summary}</span>
+          <span aria-hidden="true">{open ? '\u25B4' : '\u25BE'}</span>
+        </button>
+
+        {open && (
+          <div className="dropdown-panel" role="group" aria-label={label}>
+            {options.map((o) => (
+              <label className="dropdown-option" key={o.value}>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(o.value)}
+                  onChange={() => toggle(o.value)}
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+      {hint && <span className="hint">{hint}</span>}
+    </div>
   );
 }

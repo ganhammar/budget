@@ -11,7 +11,19 @@ import {
 import { percent, sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
 import { DebtChart, DebtTable } from './DebtChart';
-import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet, Stat } from './components';
+import {
+  AmountInput,
+  Card,
+  Empty,
+  Field,
+  ListRow,
+  MonthInput,
+  MultiSelect,
+  Note,
+  PayerSelect,
+  Sheet,
+  Stat,
+} from './components';
 
 function blankLoan(): Loan {
   return {
@@ -133,26 +145,16 @@ export function Loans() {
             </button>
           }
         >
-          <Field
+          <MultiSelect
             label="Visa lån"
-            hint="Tryck för att välja, cmd eller ctrl för flera på dator. Nya lån visas automatiskt."
-          >
-            <select
-              multiple
-              size={Math.min(5, Math.max(2, budget.loans.length))}
-              value={shown.map((l) => l.id)}
-              onChange={(e) => {
-                const chosen = [...e.target.selectedOptions].map((o) => o.value);
-                setHidden(budget.loans.filter((l) => !chosen.includes(l.id)).map((l) => l.id));
-              }}
-            >
-              {budget.loans.map((loan) => (
-                <option key={loan.id} value={loan.id}>
-                  {loan.description}
-                </option>
-              ))}
-            </select>
-          </Field>
+            allLabel="Alla lån"
+            hint="Nya lån visas automatiskt."
+            options={budget.loans.map((l) => ({ value: l.id, label: l.description }))}
+            selected={shown.map((l) => l.id)}
+            onChange={(chosen) =>
+              setHidden(budget.loans.filter((l) => !chosen.includes(l.id)).map((l) => l.id))
+            }
+          />
 
           {shown.length === 0 ? (
             <Empty text="Välj minst ett lån." />
