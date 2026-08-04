@@ -66,11 +66,13 @@ evenly across its loans; `priority` clears them in order and rolls the whole amo
 onto the next once one is settled.
 
 **Income** has one standing baseline per member. Actual figures are collected by a
-banner that appears from the 8th of each month, asks the signed-in member about
-their own income only, and stays closed once answered or dismissed. Admins can fill
-in on someone else's behalf. The presence of an `IncomeEntry` is what marks a month
-as confirmed; a month with no entry falls back to the baseline and is shown as an
-estimate.
+banner that appears from the 8th of each month and asks the signed-in member about
+their own income only. Admins can fill in on someone else's behalf. The presence of
+an `IncomeEntry` is what marks a month as confirmed; a month with no entry falls
+back to the baseline and is shown as an estimate.
+
+Closing the banner lasts for the session only. It used to be persisted per member
+per month, which meant one stray tap silenced the prompt until the next month.
 
 **The split** equalises what each member has left over rather than splitting
 proportionally by income:
@@ -102,9 +104,34 @@ membership row gets a 401 and the create-household screen. That is why the OAuth
 consent screen can be published without exposing anything: access is decided by the
 household member list, not by who Google will vouch for.
 
+## Email
+
+Sent through SES from `budget@ganhammar.se`, on a domain verified with DKIM.
+Permission is scoped to that one identity rather than `ses:SendEmail` on everything.
+
+**Invites** go out when a member row is first written, and only then, so editing
+someone later does not mail them again. The link carries no token: the household
+member list is what grants access, and the recipient still has to sign in with
+Google as that address.
+
+**Income reminders** run on the 22nd, 25th and 27th at 08:00, pinned to
+Europe/Stockholm. EventBridge Rules cannot express a timezone, only Scheduler can,
+and without it the dates drift an hour twice a year. Each run emails the active
+members with no confirmed figure for that month, so confirming stops your own
+reminders without affecting anyone else's. The 27th is worded as the last one.
+
+Reminders ignore the in-app banner entirely. Closing a banner is a UI convenience,
+not a statement that the figure is handled.
+
 ## Architecture notes
 
-**One Lambda, not one per endpoint.** ASP.NET Core minimal APIs with
+**Two Lambdas: the API and the reminder job.** Still not one per endpoint. The API
+is a single function serving every route; the scheduled job is a genuinely
+different workload and cannot share an entry point, since the ASP.NET Core host
+only understands HTTP events. `Budget.Core` holds the models, DynamoDB access and
+income rules that both need, so "confirmed income" has one definition.
+
+**One Lambda for the whole API.** ASP.NET Core minimal APIs with
 `AddAWSLambdaHosting`. Controllers are deliberately not used: they are not Native
 AOT compatible. Serialization goes through source-generated contexts for the same
 reason, including `LambdaJsonContext` for the invocation envelope, without which
