@@ -10,10 +10,18 @@ export function Household() {
   const { budget, me, isAdmin, update } = useBudget();
   const { signOut, email: signedInEmail } = useStore();
   const [inviting, setInviting] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Member | null>(null);
+
+  function rename() {
+    const cleaned = renaming?.trim();
+    if (!cleaned) return;
+    update((b) => ({ ...b, household: { ...b.household, name: cleaned } }));
+    setRenaming(null);
+  }
 
   function invite() {
     const cleaned = email.trim().toLowerCase();
@@ -77,9 +85,17 @@ export function Household() {
         title={budget.household.name}
         action={
           isAdmin ? (
-            <button className="btn btn-small" onClick={() => setInviting(true)}>
-              Bjud in
-            </button>
+            <span className="card-actions">
+              <button
+                className="btn btn-small btn-secondary"
+                onClick={() => setRenaming(budget.household.name)}
+              >
+                Byt namn
+              </button>
+              <button className="btn btn-small" onClick={() => setInviting(true)}>
+                Bjud in
+              </button>
+            </span>
           ) : undefined
         }
       >
@@ -104,7 +120,9 @@ export function Household() {
         </div>
         {!isAdmin && (
           <div style={{ marginTop: 12 }}>
-            <Note>Bara administratörer kan bjuda in eller ta bort medlemmar.</Note>
+            <Note>
+              Bara administratörer kan byta namn på hushållet, bjuda in eller ta bort medlemmar.
+            </Note>
           </div>
         )}
       </Card>
@@ -119,6 +137,29 @@ export function Household() {
           Logga ut
         </button>
       </Card>
+
+      {renaming !== null && (
+        <Sheet title="Byt namn på hushållet" onClose={() => setRenaming(null)}>
+          <Field label="Hushållets namn">
+            <input
+              autoFocus
+              value={renaming}
+              onChange={(e) => setRenaming(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && rename()}
+              placeholder="t.ex. Familjen Ganhammar"
+            />
+          </Field>
+          <Note>Namnet syns för alla i hushållet och i inbjudningar som skickas per e-post.</Note>
+          <div className="btn-row">
+            <button className="btn btn-secondary" onClick={() => setRenaming(null)}>
+              Avbryt
+            </button>
+            <button className="btn" disabled={renaming.trim() === ''} onClick={rename}>
+              Spara
+            </button>
+          </div>
+        </Sheet>
+      )}
 
       {inviting && (
         <Sheet title="Bjud in till hushållet" onClose={() => setInviting(false)}>

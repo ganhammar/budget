@@ -172,9 +172,15 @@ body {
 }
 
 /* Section titles carry a total and can wrap; the action must not be squeezed. */
-.card-header .btn {
+.card-header .btn,
+.card-header .card-actions {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* ---------- Figures ---------- */
