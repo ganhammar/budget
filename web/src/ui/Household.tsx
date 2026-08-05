@@ -146,7 +146,7 @@ export function Household() {
               value={renaming}
               onChange={(e) => setRenaming(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && rename()}
-              placeholder="t.ex. Familjen Ganhammar"
+              placeholder="t.ex. Familjen Svensson"
             />
           </Field>
           <Note>Namnet syns för alla i hushållet och i inbjudningar som skickas per e-post.</Note>

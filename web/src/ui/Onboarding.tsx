@@ -22,7 +22,7 @@ export function Onboarding() {
           autoFocus
           value={household}
           onChange={(e) => setHousehold(e.target.value)}
-          placeholder="t.ex. Familjen Ganhammar"
+          placeholder="t.ex. Familjen Svensson"
         />
       </Field>
       <Field label="Ditt namn">
