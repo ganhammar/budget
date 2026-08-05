@@ -11,6 +11,7 @@ import {
 import { sek } from '../domain/format';
 import { addMonths, currentMonth, formatMonthShort } from '../domain/month';
 import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet } from './components';
+import { useText } from '../i18n';
 
 function blank(): OneOffCost {
   const now = currentMonth();
@@ -19,6 +20,7 @@ function blank(): OneOffCost {
 
 export function OneOffCosts() {
   const { budget, update } = useBudget();
+  const t = useText();
   const [draft, setDraft] = useState<OneOffCost | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [showFinished, setShowFinished] = useState(false);
@@ -54,9 +56,9 @@ export function OneOffCosts() {
       key={cost.id}
       title={cost.description}
       badge={memberName(cost.payerId)}
-      subtitle={`${sek(cost.total)} · ${formatMonthShort(cost.start)}–${formatMonthShort(addMonths(cost.end, -1))} · ${monthsRemaining(cost, now)} mån kvar (${sek(remainingToRepay(cost, now))})`}
+      subtitle={`${sek(cost.total)} · ${formatMonthShort(cost.start)}–${formatMonthShort(addMonths(cost.end, -1))} · ${t.monthsLeft(monthsRemaining(cost, now), sek(remainingToRepay(cost, now)))}`}
       amount={sek(monthlyShare(cost))}
-      amountNote="/mån"
+      amountNote={t.perMonth}
       onClick={() => {
         setDraft({ ...cost });
         setIsNew(false);
@@ -67,7 +69,7 @@ export function OneOffCosts() {
   return (
     <>
       <Card
-        title={`Engångskostnader · ${sek(monthlyTotal)}/mån`}
+        title={`${t.oneOffCosts} · ${sek(monthlyTotal)}${t.perMonth}`}
         action={
           <button
             className="btn btn-small"
@@ -76,29 +78,28 @@ export function OneOffCosts() {
               setIsNew(true);
             }}
           >
-            Lägg till
+            {t.add}
           </button>
         }
       >
         <div style={{ marginBottom: 12 }}>
           <Note>
-            Hela beloppet lämnar det gemensamma kontot vid startmånaden och betalas tillbaka med
-            månadsbeloppet fram till slutmånaden.
+            {t.oneOffNote}
           </Note>
         </div>
-        {ongoing.length === 0 && <Empty text="Inga pågående engångskostnader." />}
+        {ongoing.length === 0 && <Empty text={t.noOngoingOneOffs} />}
         <div className="list">{ongoing.map(row)}</div>
       </Card>
 
       {finished.length > 0 && (
         <Card
-          title={`Avslutade · ${finished.length}`}
+          title={`${t.finished} · ${finished.length}`}
           action={
             <button
               className="btn btn-small btn-secondary"
               onClick={() => setShowFinished((v) => !v)}
             >
-              {showFinished ? 'Dölj' : 'Visa'}
+              {showFinished ? t.hide : t.show}
             </button>
           }
         >
@@ -108,32 +109,32 @@ export function OneOffCosts() {
 
       {draft && (
         <Sheet
-          title={isNew ? 'Ny engångskostnad' : 'Ändra engångskostnad'}
+          title={isNew ? t.newOneOff : t.editOneOff}
           onClose={() => setDraft(null)}
         >
-          <Field label="Beskrivning">
+          <Field label={t.description}>
             <input
               autoFocus
               value={draft.description}
               onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              placeholder="t.ex. Tvättmaskin"
+              placeholder={t.oneOffPlaceholder}
             />
           </Field>
-          <Field label="Total kostnad">
+          <Field label={t.totalCost}>
             <AmountInput
               value={draft.total || ''}
               onChange={(v) => setDraft({ ...draft, total: v })}
             />
           </Field>
           <div className="field-pair">
-            <Field label="Betalas ut" hint="Månaden pengarna lämnar kontot.">
+            <Field label={t.paidOut} hint={t.paidOutHint}>
               <MonthInput value={draft.start} onChange={(v) => setDraft({ ...draft, start: v })} />
             </Field>
-            <Field label="Återbetalt till" hint="Exklusiv, sista avbetalningen är månaden före.">
+            <Field label={t.repaidBy} hint={t.repaidByHint}>
               <MonthInput value={draft.end} onChange={(v) => setDraft({ ...draft, end: v })} />
             </Field>
           </div>
-          <Field label="Betalas av">
+          <Field label={t.paidBy}>
             <PayerSelect
               members={budget.members}
               value={draft.payerId}
@@ -143,19 +144,23 @@ export function OneOffCosts() {
 
           {draft.total > 0 && (
             <Note>
-              {sek(draft.total)} fördelat på {repaymentMonths(draft)} månader blir{' '}
-              <strong>{sek(monthlyShare(draft))}/mån</strong>.
+              {t.spreadPrefix(sek(draft.total), repaymentMonths(draft))}{' '}
+              <strong>
+                {sek(monthlyShare(draft))}
+                {t.perMonth}
+              </strong>
+              .
             </Note>
           )}
 
           <div className="btn-row">
             {!isNew && (
               <button className="btn btn-danger" onClick={remove}>
-                Ta bort
+                {t.remove}
               </button>
             )}
             <button className="btn" onClick={save}>
-              Spara
+              {t.save}
             </button>
           </div>
         </Sheet>

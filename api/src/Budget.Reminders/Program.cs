@@ -68,7 +68,8 @@ public static class Program
             foreach (var member in IncomeRules.AwaitingIncome(budget, month))
             {
                 var (subject, body) = Messages.IncomeReminder(
-                    member.Name, month, budget.Household.Name, email.AppUrl, input.Final);
+                    member.Name, month, budget.Household.Name, email.AppUrl, input.Final,
+                    member.Language);
 
                 try
                 {

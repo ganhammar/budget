@@ -24,6 +24,7 @@ import {
   Sheet,
   Stat,
 } from './components';
+import { fixationLabel, useText } from '../i18n';
 
 function blankLoan(): Loan {
   return {
@@ -41,6 +42,7 @@ function blankStream(): AmortizationStream {
 
 export function Loans() {
   const { budget, update } = useBudget();
+  const t = useText();
   const [loanDraft, setLoanDraft] = useState<Loan | null>(null);
   const [streamDraft, setStreamDraft] = useState<AmortizationStream | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -119,36 +121,36 @@ export function Loans() {
 
   return (
     <>
-      <Card title="Lån totalt">
+      <Card title={t.loansTotal}>
         <div className="stat-grid">
-          <Stat label="Total skuld" value={sek(totalDebt)} />
-          <Stat label="Denna månad" value={sek(totalInterest + totalAmortization)} />
-          <Stat label="Varav ränta" value={sek(totalInterest)} />
-          <Stat label="Varav amortering" value={sek(totalAmortization)} />
+          <Stat label={t.totalDebt} value={sek(totalDebt)} />
+          <Stat label={t.thisMonthLabel} value={sek(totalInterest + totalAmortization)} />
+          <Stat label={t.ofWhichInterest} value={sek(totalInterest)} />
+          <Stat label={t.ofWhichAmortization} value={sek(totalAmortization)} />
         </div>
         {debtFree && (
           <div style={{ marginTop: 12 }}>
-            <Note>Skuldfri {formatMonth(debtFree)} med nuvarande amortering.</Note>
+            <Note>{t.debtFreeIn(formatMonth(debtFree))}</Note>
           </div>
         )}
       </Card>
 
       {debtPoints.length > 1 && (
         <Card
-          title="Skuld över tid"
+          title={t.debtOverTime}
           action={
             <button
               className="btn btn-small btn-secondary"
               onClick={() => setShowDebtTable((v) => !v)}
             >
-              {showDebtTable ? 'Graf' : 'Tabell'}
+              {showDebtTable ? t.chart : t.table}
             </button>
           }
         >
           <MultiSelect
-            label="Visa lån"
-            allLabel="Alla lån"
-            hint="Nya lån visas automatiskt."
+            label={t.showLoans}
+            allLabel={t.allLoans}
+            hint={t.newLoansShown}
             options={budget.loans.map((l) => ({ value: l.id, label: l.description }))}
             selected={shown.map((l) => l.id)}
             onChange={(chosen) =>
@@ -157,7 +159,7 @@ export function Loans() {
           />
 
           {shown.length === 0 ? (
-            <Empty text="Välj minst ett lån." />
+            <Empty text={t.pickOneLoan} />
           ) : showDebtTable ? (
             <DebtTable points={debtPoints} loans={shown} />
           ) : (
@@ -172,7 +174,7 @@ export function Loans() {
       )}
 
       <Card
-        title="Lån"
+        title={t.loans}
         action={
           <button
             className="btn btn-small"
@@ -181,26 +183,26 @@ export function Loans() {
               setIsNew(true);
             }}
           >
-            Lägg till
+            {t.add}
           </button>
         }
       >
-        {budget.loans.length === 0 && <Empty text="Inga lån inlagda än." />}
+        {budget.loans.length === 0 && <Empty text={t.noLoans} />}
         <div className="list">
           {result.loanLines.map((line) => (
             <ListRow
               key={line.loan.id}
               title={line.loan.description}
               badge={memberName(line.loan.payerId)}
-              subtitle={`${sek(line.debt)} · ${percent(line.loan.nominalRate)} nom · ränta ${sek(line.interest)}${
-                line.amortization > 0 ? ` · amort ${sek(line.amortization)}` : ''
+              subtitle={`${sek(line.debt)} · ${percent(line.loan.nominalRate)} ${t.nominalShort} · ${t.interest} ${sek(line.interest)}${
+                line.amortization > 0 ? ` · ${t.amortizationShort} ${sek(line.amortization)}` : ''
               } · ${
                 payoff[line.loan.id]
-                  ? `slutbetald ${formatMonthShort(payoff[line.loan.id]!)}`
-                  : 'amorteras inte'
+                  ? t.paidOffIn(formatMonthShort(payoff[line.loan.id]!))
+                  : t.notAmortized
               }`}
               amount={sek(line.total)}
-              amountNote="/mån"
+              amountNote={t.perMonth}
               onClick={() => {
                 setLoanDraft({ ...line.loan });
                 setIsNew(false);
@@ -211,7 +213,7 @@ export function Loans() {
       </Card>
 
       <Card
-        title="Amortering"
+        title={t.amortization}
         action={
           <button
             className="btn btn-small"
@@ -220,29 +222,31 @@ export function Loans() {
               setIsNew(true);
             }}
           >
-            Lägg till
+            {t.add}
           </button>
         }
       >
         <div style={{ marginBottom: 12 }}>
           <Note>
-            <strong>Parallell</strong> delar beloppet lika mellan lånen. <strong>Prioritet</strong>{' '}
-            betar av ett lån i taget och flyttar hela beloppet till nästa när ett är slutbetalt.
+            <strong>{t.parallel}</strong>
+            {t.amortizationSplits}
+            <strong>{t.priority}</strong>
+            {t.amortizationRolls}
           </Note>
         </div>
-        {budget.amortizationStreams.length === 0 && <Empty text="Ingen amortering inlagd." />}
+        {budget.amortizationStreams.length === 0 && <Empty text={t.noAmortization} />}
         <div className="list">
           {budget.amortizationStreams.map((stream) => (
             <ListRow
               key={stream.id}
               title={stream.name}
-              badge={stream.mode === 'parallel' ? 'Parallell' : 'Prioritet'}
-              subtitle={`Från ${formatMonthShort(stream.start)} · ${stream.loanIds
+              badge={stream.mode === 'parallel' ? t.parallel : t.priority}
+              subtitle={`${t.from} ${formatMonthShort(stream.start)} · ${stream.loanIds
                 .map((id) => budget.loans.find((l) => l.id === id)?.description)
                 .filter(Boolean)
                 .join(stream.mode === 'priority' ? ' → ' : ' + ')}`}
               amount={sek(stream.amount)}
-              amountNote="/mån"
+              amountNote={t.perMonth}
               onClick={() => {
                 setStreamDraft({ ...stream, loanIds: [...stream.loanIds] });
                 setIsNew(false);
@@ -253,23 +257,23 @@ export function Loans() {
       </Card>
 
       {loanDraft && (
-        <Sheet title={isNew ? 'Nytt lån' : 'Ändra lån'} onClose={() => setLoanDraft(null)}>
-          <Field label="Beskrivning">
+        <Sheet title={isNew ? t.newLoan : t.editLoan} onClose={() => setLoanDraft(null)}>
+          <Field label={t.description}>
             <input
               autoFocus
               value={loanDraft.description}
               onChange={(e) => setLoanDraft({ ...loanDraft, description: e.target.value })}
-              placeholder="t.ex. Huslån del 1"
+              placeholder={t.loanPlaceholder}
             />
           </Field>
           <div className="field-pair">
-            <Field label="Ursprunglig skuld">
+            <Field label={t.originalDebt}>
               <AmountInput
                 value={loanDraft.originalDebt || ''}
                 onChange={(v) => setLoanDraft({ ...loanDraft, originalDebt: v })}
               />
             </Field>
-            <Field label="Nominell ränta (%)">
+            <Field label={t.nominalRate}>
               <AmountInput
                 step={0.01}
                 value={loanDraft.nominalRate ? Number((loanDraft.nominalRate * 100).toFixed(4)) : ''}
@@ -278,28 +282,28 @@ export function Loans() {
             </Field>
           </div>
           <div className="field-pair">
-            <Field label="Räntebindning">
+            <Field label={t.rateFixation}>
               <select
                 value={loanDraft.fixation}
                 onChange={(e) =>
                   setLoanDraft({ ...loanDraft, fixation: e.target.value as RateFixation })
                 }
               >
-                {RATE_FIXATIONS.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
+                {RATE_FIXATIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {fixationLabel(t, value)}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Villkorsändringsdag">
+            <Field label={t.resetDate}>
               <MonthInput
                 value={loanDraft.resetDate ?? ''}
                 onChange={(v) => setLoanDraft({ ...loanDraft, resetDate: v || undefined })}
               />
             </Field>
           </div>
-          <Field label="Betalas av">
+          <Field label={t.paidBy}>
             <PayerSelect
               members={budget.members}
               value={loanDraft.payerId}
@@ -309,20 +313,20 @@ export function Loans() {
 
           {loanDraft.nominalRate > 0 && (
             <Note>
-              {percent(loanDraft.nominalRate)} nominellt motsvarar{' '}
-              <strong>{percent(effectiveRate(loanDraft.nominalRate))} effektivt</strong> med
-              månadsvis kapitalisering. Budgeten räknar räntan på den nominella satsen.
+              {t.effectivePrefix(percent(loanDraft.nominalRate))}{' '}
+              <strong>{t.effectiveBold(percent(effectiveRate(loanDraft.nominalRate)))}</strong>
+              {t.effectiveSuffix}
             </Note>
           )}
 
           <div className="btn-row">
             {!isNew && (
               <button className="btn btn-danger" onClick={removeLoan}>
-                Ta bort
+                {t.remove}
               </button>
             )}
             <button className="btn" onClick={saveLoan}>
-              Spara
+              {t.save}
             </button>
           </div>
         </Sheet>
@@ -330,49 +334,45 @@ export function Loans() {
 
       {streamDraft && (
         <Sheet
-          title={isNew ? 'Ny amortering' : 'Ändra amortering'}
+          title={isNew ? t.newAmortization : t.editAmortization}
           onClose={() => setStreamDraft(null)}
         >
-          <Field label="Namn">
+          <Field label={t.name}>
             <input
               autoFocus
               value={streamDraft.name}
               onChange={(e) => setStreamDraft({ ...streamDraft, name: e.target.value })}
-              placeholder="t.ex. Huslån"
+              placeholder={t.amortizationPlaceholder}
             />
           </Field>
           <div className="field-pair">
-            <Field label="Belopp per månad">
+            <Field label={t.amountPerMonth}>
               <AmountInput
                 value={streamDraft.amount || ''}
                 onChange={(v) => setStreamDraft({ ...streamDraft, amount: v })}
               />
             </Field>
-            <Field label="Startade">
+            <Field label={t.started}>
               <MonthInput
                 value={streamDraft.start}
                 onChange={(v) => setStreamDraft({ ...streamDraft, start: v })}
               />
             </Field>
           </div>
-          <Field label="Fördelning">
+          <Field label={t.allocation}>
             <select
               value={streamDraft.mode}
               onChange={(e) =>
                 setStreamDraft({ ...streamDraft, mode: e.target.value as 'parallel' | 'priority' })
               }
             >
-              <option value="parallel">Parallell (dela lika)</option>
-              <option value="priority">Prioritet (ett i taget, i ordning)</option>
+              <option value="parallel">{t.parallelOption}</option>
+              <option value="priority">{t.priorityOption}</option>
             </select>
           </Field>
           <Field
-            label="Lån"
-            hint={
-              streamDraft.mode === 'priority'
-                ? 'Klicka i den ordning de ska betas av.'
-                : 'Beloppet delas lika mellan valda lån.'
-            }
+            label={t.loans}
+            hint={streamDraft.mode === 'priority' ? t.priorityHint : t.parallelHint}
           >
             <div className="list">
               {budget.loans.map((loan) => {
@@ -412,11 +412,11 @@ export function Loans() {
           <div className="btn-row">
             {!isNew && (
               <button className="btn btn-danger" onClick={removeStream}>
-                Ta bort
+                {t.remove}
               </button>
             )}
             <button className="btn" onClick={saveStream}>
-              Spara
+              {t.save}
             </button>
           </div>
         </Sheet>

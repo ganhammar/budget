@@ -12,9 +12,11 @@ import { sek } from '../domain/format';
 import { addMonths, currentMonth, formatMonth, formatMonthShort } from '../domain/month';
 import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
 import { ConfirmIncome } from './ConfirmIncome';
+import { useText } from '../i18n';
 
 export function Income() {
   const { budget, me, isAdmin, update } = useBudget();
+  const t = useText();
   const [editing, setEditing] = useState<Month | null>(null);
   /** null means "not confirmed", which is deliberately different from a zero. */
   const [drafts, setDrafts] = useState<Record<string, number | null>>({});
@@ -75,11 +77,11 @@ export function Income() {
   return (
     <>
       <Card
-        title={`Denna månad · ${formatMonth(thisMonth)}`}
+        title={`${t.thisMonth} · ${formatMonth(thisMonth)}`}
         action={
           myIncomeConfirmed ? (
             <button className="btn btn-small btn-secondary" onClick={() => openEditor(thisMonth)}>
-              Ändra
+              {t.edit}
             </button>
           ) : undefined
         }
@@ -87,7 +89,7 @@ export function Income() {
         {/* The whole point of the tab: answer it before anything else is shown. */}
         {!myIncomeConfirmed && (
           <div className="ask">
-            <p className="ask-text">Vad fick du in i {formatMonth(thisMonth)}?</p>
+            <p className="ask-text">{t.askIncome(formatMonth(thisMonth))}</p>
             <ConfirmIncome month={thisMonth} />
           </div>
         )}
@@ -99,13 +101,13 @@ export function Income() {
               <ListRow
                 key={member.id}
                 title={member.name}
-                badge={confirmed ? undefined : 'Ej bekräftad'}
+                badge={confirmed ? undefined : t.notConfirmed}
                 subtitle={
                   confirmed
                     ? member.id === me.id
-                      ? 'Bekräftad av dig'
-                      : 'Bekräftad'
-                    : `Räknar med normalt ${sek(member.baselineIncome)}`
+                      ? t.confirmedByYou
+                      : t.confirmed
+                    : t.assumingNormal(sek(member.baselineIncome))
                 }
                 amount={sek(incomeFor(budget, member.id, thisMonth))}
                 // An unconfirmed figure is the baseline carried forward, not a
@@ -119,18 +121,16 @@ export function Income() {
         {isAdmin && awaiting.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <Note>
-              Väntar på {awaiting.map((m) => m.name).join(', ')}. Som administratör kan du trycka på
-              raden för att fylla i åt dem.
+              {t.waitingFor(awaiting.map((m) => m.name).join(', '))}
             </Note>
           </div>
         )}
       </Card>
 
-      <Card title="Normal inkomst">
+      <Card title={t.normalIncome}>
         <div style={{ marginBottom: 14 }}>
           <Note>
-            Vad ni normalt får in. Används för framtida månader i prognosen och som utgångspunkt
-            när ni bekräftar månadens inkomst.
+            {t.normalIncomeNote}
           </Note>
         </div>
         {members.map((member) => (
@@ -144,16 +144,16 @@ export function Income() {
         ))}
       </Card>
 
-      <Card title="Historik">
+      <Card title={t.history}>
         <div className="scroll-x">
           <table className="table">
             <thead>
               <tr>
-                <th>Månad</th>
+                <th>{t.monthLabel}</th>
                 {members.map((m) => (
                   <th key={m.id}>{m.name}</th>
                 ))}
-                <th>Totalt</th>
+                <th>{t.total}</th>
               </tr>
             </thead>
             <tbody>
@@ -180,25 +180,24 @@ export function Income() {
         </div>
         <div style={{ marginTop: 12 }}>
           <Note>
-            Grå siffror med ~ är uppskattningar som räknats fram från normal inkomst, inte
-            bekräftade belopp. Tryck på en månad för att fylla i eller ändra.
+            {t.historyNote}
           </Note>
         </div>
       </Card>
 
-      <Card title="Gemensamt konto">
+      <Card title={t.jointAccount}>
         <div style={{ marginBottom: 14 }}>
-          <Note>Ange saldot som det faktiskt ser ut i dag. Prognosen räknar framåt därifrån.</Note>
+          <Note>{t.balanceNote}</Note>
         </div>
         <div className="field-pair">
-          <Field label="Saldo">
+          <Field label={t.balanceField}>
             <AmountInput
               value={budget.accountBalance?.amount ?? ''}
               onChange={(v) => setBalance(v, budget.accountBalance?.month ?? thisMonth)}
               step={100}
             />
           </Field>
-          <Field label="Gäller månad">
+          <Field label={t.appliesToMonth}>
             <MonthInput
               value={budget.accountBalance?.month ?? thisMonth}
               onChange={(v) => setBalance(budget.accountBalance?.amount ?? 0, v)}
@@ -207,24 +206,26 @@ export function Income() {
         </div>
         {budget.accountBalance && (
           <span className="hint">
-            Prognosen börjar i {formatMonth(budget.accountBalance.month)} och sträcker sig till{' '}
-            {formatMonth(addMonths(budget.accountBalance.month, 23))}.
+            {t.forecastRange(
+              formatMonth(budget.accountBalance.month),
+              formatMonth(addMonths(budget.accountBalance.month, 23)),
+            )}
           </span>
         )}
       </Card>
 
       {editing && (
-        <Sheet title={`Inkomst · ${formatMonth(editing)}`} onClose={() => setEditing(null)}>
+        <Sheet title={`${t.income} · ${formatMonth(editing)}`} onClose={() => setEditing(null)}>
           {members.map((member) => {
             const allowed = canEditIncomeFor(me, member.id);
             const value = drafts[member.id];
             return (
               <Field
                 key={member.id}
-                label={member.name + (allowed ? '' : ' (endast hen kan ändra)')}
+                label={member.name + (allowed ? '' : ` ${t.onlyTheyCanEdit}`)}
                 hint={
                   value === null
-                    ? `Lämna tomt för att låta månaden stå kvar som uppskattning (${sek(member.baselineIncome)})`
+                    ? t.leaveBlankHint(sek(member.baselineIncome))
                     : undefined
                 }
               >
@@ -244,21 +245,21 @@ export function Income() {
                     style={{ alignSelf: 'flex-start', marginTop: 4 }}
                     onClick={() => setDrafts({ ...drafts, [member.id]: null })}
                   >
-                    Ta bort bekräftelsen
+                    {t.removeConfirmation}
                   </button>
                 )}
               </Field>
             );
           })}
           {members.some((m) => !canEditIncomeFor(me, m.id)) && (
-            <Note>Du kan bara ändra din egen inkomst. Administratörer kan ändra allas.</Note>
+            <Note>{t.ownIncomeOnly}</Note>
           )}
           <div className="btn-row">
             <button className="btn btn-secondary" onClick={() => setEditing(null)}>
-              Avbryt
+              {t.cancel}
             </button>
             <button className="btn" onClick={saveEditor}>
-              Spara
+              {t.save}
             </button>
           </div>
         </Sheet>

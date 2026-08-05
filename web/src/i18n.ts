@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useStore } from './store/store';
-import type { Language } from './domain/types';
+import type { Language, RateFixation } from './domain/types';
 import { setLocale } from './domain/format';
 import { setMonthLanguage } from './domain/month';
 import { defaultLanguage, storedLanguage } from './settings';
@@ -161,7 +161,8 @@ const sv = {
   everyMonth: 'Varje månad',
   nextCharge: (month: string) => `nästa ${month}`,
   pausedCosts: 'Pausade kostnader',
-  pausedNote: 'Pausade kostnader räknas inte längre, men finns kvar i månaderna de var aktiva.',
+  pausedNote:
+    'Pausade kostnader räknas inte längre, men finns kvar i månaderna de faktiskt betalades.',
   resume: 'Återuppta',
   pause: 'Pausa',
   newCost: 'Ny kostnad',
@@ -199,8 +200,7 @@ const sv = {
   paidOutHint: 'Månaden pengarna lämnar kontot.',
   repaidBy: 'Återbetalt till',
   repaidByHint: 'Exklusiv, sista avbetalningen är månaden före.',
-  spreadOver: (total: string, months: number, monthly: string) =>
-    `${total} fördelat på ${months} månader blir ${monthly}.`,
+  spreadPrefix: (total: string, months: number) => `${total} fördelat på ${months} månader blir`,
   finished: 'Avslutade',
   oneOffSuffix: 'engång',
 
@@ -283,6 +283,19 @@ const sv = {
   intervalEveryNWeeks: (n: number) => (n === 1 ? 'varje vecka' : `var ${n}:e vecka`),
 
   // Rate fixations
+  noActiveCosts: 'Inga aktiva kostnader.',
+  totalCost: 'Total kostnad',
+  pausedTitle: 'Pausade',
+  pausedSince: (month: string) => `pausad sedan ${month}`,
+  budgetedPrefix: (amount: string, interval: string) => `${amount} ${interval} blir`,
+  budgetedSuffix: ' i budgeten.',
+  effectivePrefix: (nominal: string) => `${nominal} nominellt motsvarar`,
+  effectiveBold: (effective: string) => `${effective} effektivt`,
+  effectiveSuffix:
+    ' med månadsvis kapitalisering. Budgeten räknar räntan på den nominella satsen.',
+  amortizationSplits: ' delar beloppet lika mellan lånen. ',
+  amortizationRolls:
+    ' betar av ett lån i taget och flyttar hela beloppet till nästa när ett är slutbetalt.',
   nothingSelected: 'Inget valt',
   nOfM: (n: number, m: number) => `${n} av ${m}`,
   fixationFloating: '3 mån (rörlig)',
@@ -427,7 +440,7 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   everyMonth: 'Every month',
   nextCharge: (month: string) => `next ${month}`,
   pausedCosts: 'Paused costs',
-  pausedNote: 'Paused costs no longer count, but remain in the months they were active.',
+  pausedNote: 'Paused costs no longer count, but remain in the months they were actually paid.',
   resume: 'Resume',
   pause: 'Pause',
   newCost: 'New cost',
@@ -464,8 +477,7 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   paidOutHint: 'The month the money leaves the account.',
   repaidBy: 'Repaid by',
   repaidByHint: 'Exclusive: the last instalment is the month before.',
-  spreadOver: (total: string, months: number, monthly: string) =>
-    `${total} spread over ${months} months is ${monthly}.`,
+  spreadPrefix: (total: string, months: number) => `${total} spread over ${months} months is`,
   finished: 'Finished',
   oneOffSuffix: 'one-off',
 
@@ -544,6 +556,18 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   intervalEveryNMonths: (n: number) => `every ${n} months`,
   intervalEveryNWeeks: (n: number) => (n === 1 ? 'every week' : `every ${n} weeks`),
 
+  noActiveCosts: 'No active costs.',
+  totalCost: 'Total cost',
+  pausedTitle: 'Paused',
+  pausedSince: (month: string) => `paused since ${month}`,
+  budgetedPrefix: (amount: string, interval: string) => `${amount} ${interval} is budgeted as`,
+  budgetedSuffix: '.',
+  effectivePrefix: (nominal: string) => `${nominal} nominal works out to`,
+  effectiveBold: (effective: string) => `${effective} effective`,
+  effectiveSuffix: ' with monthly compounding. The budget charges interest at the nominal rate.',
+  amortizationSplits: ' splits the amount equally between the loans. ',
+  amortizationRolls:
+    ' clears one loan at a time and moves the whole amount to the next when one is paid off.',
   nothingSelected: 'Nothing selected',
   nOfM: (n: number, m: number) => `${n} of ${m}`,
   fixationFloating: '3 mo (floating)',
@@ -551,6 +575,25 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
 };
 
 export type Text = typeof sv;
+
+export function monthIntervalLabel(t: Text, months: number): string {
+  if (months === 1) return t.everyMonth;
+  if (months === 2) return t.everyOtherMonth;
+  if (months === 3) return t.quarterly;
+  if (months === 6) return t.halfYearly;
+  if (months === 12) return t.yearly;
+  if (months === 24) return t.everyOtherYear;
+  if (months === 36) return t.everyThirdYear;
+  return t.intervalEveryNMonths(months);
+}
+
+export function weekIntervalLabel(t: Text, weeks: number): string {
+  return weeks === 1 ? t.everyWeek : t.everyNWeeks(weeks);
+}
+
+export function fixationLabel(t: Text, value: RateFixation): string {
+  return value === 'floating3m' ? t.fixationFloating : t.fixationYears(Number(value.slice(0, -1)));
+}
 
 const DICTIONARIES: Record<Language, Text> = { sv, en: en as Text };
 

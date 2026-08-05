@@ -11,6 +11,7 @@ import {
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort } from '../domain/month';
 import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet } from './components';
+import { monthIntervalLabel, useText, weekIntervalLabel } from '../i18n';
 
 function blank(): RecurringCost {
   return {
@@ -25,6 +26,7 @@ function blank(): RecurringCost {
 
 export function RecurringCosts() {
   const { budget, update } = useBudget();
+  const t = useText();
   const [draft, setDraft] = useState<RecurringCost | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
@@ -91,7 +93,7 @@ export function RecurringCosts() {
   return (
     <>
       <Card
-        title={`Gemensamma kostnader · ${sek(total)}/mån`}
+        title={`${t.sharedCosts} · ${sek(total)}${t.perMonth}`}
         action={
           <button
             className="btn btn-small"
@@ -100,15 +102,16 @@ export function RecurringCosts() {
               setIsNew(true);
             }}
           >
-            Lägg till
+            {t.add}
           </button>
         }
       >
-        {live.length === 0 && <Empty text="Inga aktiva kostnader." />}
+        {live.length === 0 && <Empty text={t.noActiveCosts} />}
         {groups.map(([category, costs]) => (
           <div key={category} style={{ marginBottom: 14 }}>
             <div className="group-label">
-              {category} · {sek(costs.reduce((sum, c) => sum + monthlyAmount(c), 0))}/mån
+              {category} · {sek(costs.reduce((sum, c) => sum + monthlyAmount(c), 0))}
+              {t.perMonth}
             </div>
             <div className="list">
               {costs.map((cost) => {
@@ -120,11 +123,11 @@ export function RecurringCosts() {
                     badge={memberName(cost.payerId)}
                     subtitle={
                       cost.intervalWeeks || cost.intervalMonths !== 1
-                        ? `${sek(cost.amount)} · ${intervalLabel(cost)}${next ? ` · nästa ${formatMonthShort(next)}` : ''}`
-                        : 'Varje månad'
+                        ? `${sek(cost.amount)} · ${intervalLabel(cost, t)}${next ? ` · ${t.nextCharge(formatMonthShort(next))}` : ''}`
+                        : t.everyMonth
                     }
                     amount={sek(monthlyAmount(cost))}
-                    amountNote="/mån"
+                    amountNote={t.perMonth}
                     onClick={() => {
                       setDraft({ ...cost });
                       setIsNew(false);
@@ -139,22 +142,19 @@ export function RecurringCosts() {
 
       {paused.length > 0 && (
         <Card
-          title={`Pausade · ${paused.length}`}
+          title={`${t.pausedTitle} · ${paused.length}`}
           action={
             <button
               className="btn btn-small btn-secondary"
               onClick={() => setShowPaused((v) => !v)}
             >
-              {showPaused ? 'Dölj' : 'Visa'}
+              {showPaused ? t.hide : t.show}
             </button>
           }
         >
           {showPaused && (
             <>
-              <Note>
-                Pausade kostnader räknas inte längre, men finns kvar i månaderna de
-                faktiskt betalades.
-              </Note>
+              <Note>{t.pausedNote}</Note>
               <div className="list">
                 {paused.map((cost) => {
                   const since = pausedFrom(cost);
@@ -162,9 +162,9 @@ export function RecurringCosts() {
                     <ListRow
                       key={cost.id}
                       title={cost.description}
-                      subtitle={`${cost.category}${since ? ` · pausad sedan ${formatMonth(since)}` : ''}`}
+                      subtitle={`${cost.category}${since ? ` · ${t.pausedSince(formatMonth(since))}` : ''}`}
                       amount={sek(monthlyAmount(cost))}
-                      amountNote="/mån"
+                      amountNote={t.perMonth}
                       onClick={() => {
                         setDraft({ ...cost });
                         setIsNew(false);
@@ -179,16 +179,16 @@ export function RecurringCosts() {
       )}
 
       {draft && (
-        <Sheet title={isNew ? 'Ny kostnad' : 'Ändra kostnad'} onClose={() => setDraft(null)}>
-          <Field label="Beskrivning">
+        <Sheet title={isNew ? t.newCost : t.editCost} onClose={() => setDraft(null)}>
+          <Field label={t.description}>
             <input
               autoFocus
               value={draft.description}
               onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              placeholder="t.ex. Bilförsäkring"
+              placeholder={t.costPlaceholder}
             />
           </Field>
-          <Field label="Kategori">
+          <Field label={t.category}>
             <select
               value={draft.category}
               onChange={(e) => setDraft({ ...draft, category: e.target.value })}
@@ -199,13 +199,13 @@ export function RecurringCosts() {
             </select>
           </Field>
           <div className="field-pair">
-            <Field label="Belopp per betalning">
+            <Field label={t.amountPerCharge}>
               <AmountInput
                 value={draft.amount || ''}
                 onChange={(v) => setDraft({ ...draft, amount: v })}
               />
             </Field>
-            <Field label="Hur ofta">
+            <Field label={t.howOften}>
               <select
                 value={draft.intervalWeeks ? `w${draft.intervalWeeks}` : `m${draft.intervalMonths}`}
                 onChange={(e) => {
@@ -222,17 +222,17 @@ export function RecurringCosts() {
                   );
                 }}
               >
-                <optgroup label="Månader">
-                  {INTERVALS.map((i) => (
-                    <option key={i.value} value={`m${i.value}`}>
-                      {i.label}
+                <optgroup label={t.groupMonths}>
+                  {INTERVALS.map((months) => (
+                    <option key={months} value={`m${months}`}>
+                      {monthIntervalLabel(t, months)}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="Veckor">
-                  {WEEK_INTERVALS.map((i) => (
-                    <option key={i.value} value={`w${i.value}`}>
-                      {i.label}
+                <optgroup label={t.groupWeeks}>
+                  {WEEK_INTERVALS.map((weeks) => (
+                    <option key={weeks} value={`w${weeks}`}>
+                      {weekIntervalLabel(t, weeks)}
                     </option>
                   ))}
                 </optgroup>
@@ -241,8 +241,8 @@ export function RecurringCosts() {
           </div>
           {draft.intervalWeeks ? (
             <Field
-              label="Första betalning"
-              hint={`Dras sedan ${intervalLabel(draft)} räknat från det här datumet.`}
+              label={t.firstCharge}
+              hint={t.chargedFromDate(intervalLabel(draft, t))}
             >
               <input
                 type="date"
@@ -252,11 +252,11 @@ export function RecurringCosts() {
             </Field>
           ) : (
             <Field
-              label="Första betalning"
+              label={t.firstCharge}
               hint={
                 draft.intervalMonths === 1
-                  ? 'Dras varje månad.'
-                  : `Dras sedan ${intervalLabel(draft)} räknat från den här månaden.`
+                  ? t.chargedMonthly
+                  : t.chargedFromMonth(intervalLabel(draft, t))
               }
             >
               <MonthInput
@@ -266,8 +266,8 @@ export function RecurringCosts() {
             </Field>
           )}
           <Field
-            label="Betalas av"
-            hint="Gemensamt drar pengarna från det gemensamma kontot. Väljer du en person dras kostnaden i stället från den personens överföring."
+            label={t.paidBy}
+            hint={t.paidByHint}
           >
             <PayerSelect
               members={budget.members}
@@ -278,11 +278,15 @@ export function RecurringCosts() {
 
           {draft.amount > 0 && (draft.intervalWeeks || draft.intervalMonths > 1) && (
             <Note>
-              {sek(draft.amount)} {intervalLabel(draft)} blir{' '}
-              <strong>{sek(monthlyAmount(draft))}/mån</strong> i budgeten. Uttagen sker i{' '}
+              {t.budgetedPrefix(sek(draft.amount), intervalLabel(draft, t))}{' '}
+              <strong>
+                {sek(monthlyAmount(draft))}
+                {t.perMonth}
+              </strong>
+              {t.budgetedSuffix} {t.chargesOccurIn}{' '}
               {upcomingCharges(draft, currentMonth(), 12)
                 .map(formatMonthShort)
-                .join(', ') || 'kommande år'}
+                .join(', ') || t.comingYears}
               .
             </Note>
           )}
@@ -291,22 +295,22 @@ export function RecurringCosts() {
             <div className="btn-row">
               {isCostPaused(draft, thisMonth) ? (
                 <button className="btn btn-secondary" onClick={() => resume(draft)}>
-                  Återuppta
+                  {t.resume}
                 </button>
               ) : (
                 <button className="btn btn-secondary" onClick={() => pause(draft)}>
-                  Pausa
+                  {t.pause}
                 </button>
               )}
               <button className="btn btn-danger" onClick={remove}>
-                Ta bort
+                {t.remove}
               </button>
             </div>
           )}
 
           <div className="btn-row">
             <button className="btn" onClick={save}>
-              Spara
+              {t.save}
             </button>
           </div>
         </Sheet>

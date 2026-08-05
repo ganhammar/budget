@@ -101,14 +101,7 @@ export interface OneOffCost {
 
 export type RateFixation = 'floating3m' | '1y' | '2y' | '3y' | '5y' | '10y';
 
-export const RATE_FIXATIONS: { value: RateFixation; label: string }[] = [
-  { value: 'floating3m', label: '3 mån (rörlig)' },
-  { value: '1y', label: '1 år' },
-  { value: '2y', label: '2 år' },
-  { value: '3y', label: '3 år' },
-  { value: '5y', label: '5 år' },
-  { value: '10y', label: '10 år' },
-];
+export const RATE_FIXATIONS: RateFixation[] = ['floating3m', '1y', '2y', '3y', '5y', '10y'];
 
 export interface Loan {
   id: string;
@@ -159,25 +152,10 @@ export function activeMembers(budget: Budget): Member[] {
   return budget.members.filter((m) => m.status === 'active');
 }
 
-/** User-facing category labels, so these stay Swedish. */
+/** Category names are user data rather than interface text, so they are not translated. */
 export const CATEGORIES = ['Hus', 'Barn', 'Mat', 'Media', 'Husdjur', 'Bil', 'Övrigt'];
 
 /** Week-based cadences, for billing that does not align to months. */
-export const WEEK_INTERVALS: { value: number; label: string }[] = [
-  { value: 1, label: 'Varje vecka' },
-  { value: 2, label: 'Varannan vecka' },
-  { value: 4, label: 'Var 4:e vecka' },
-  { value: 6, label: 'Var 6:e vecka' },
-  { value: 8, label: 'Var 8:e vecka' },
-  { value: 12, label: 'Var 12:e vecka' },
-];
+export const WEEK_INTERVALS = [1, 2, 4, 6, 8, 12];
 
-export const INTERVALS: { value: number; label: string }[] = [
-  { value: 1, label: 'Varje månad' },
-  { value: 2, label: 'Varannan månad' },
-  { value: 3, label: 'Kvartalsvis' },
-  { value: 6, label: 'Halvårsvis' },
-  { value: 12, label: 'Årsvis' },
-  { value: 24, label: 'Vartannat år' },
-  { value: 36, label: 'Vart tredje år' },
-];
+export const INTERVALS = [1, 2, 3, 6, 12, 24, 36];

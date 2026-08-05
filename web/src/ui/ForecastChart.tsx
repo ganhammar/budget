@@ -138,7 +138,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
             const item = (selected ?? points[0]).items[slot];
             return (
               <div className="tooltip-row item" key={slot}>
-                <span>{item ? item.label : ' '}</span>
+                <span>{item ? (item.oneOff ? `${item.label} (${t.oneOffSuffix})` : item.label) : ' '}</span>
                 <span>{item ? sek(item.amount) : ''}</span>
               </div>
             );

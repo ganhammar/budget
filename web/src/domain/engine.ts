@@ -1,4 +1,5 @@
 import type { Budget, Loan, Month, OneOffCost, RecurringCost } from './types';
+import type { Text } from '../i18n';
 import { activeMembers } from './types';
 import {
   addDays,
@@ -86,16 +87,17 @@ export function isChargedIn(cost: RecurringCost, month: Month): boolean {
   return chargesIn(cost, month) > 0;
 }
 
-/** How the cadence reads on a row, e.g. "var 8:e vecka". */
-export function intervalLabel(cost: RecurringCost): string {
-  if (cost.intervalWeeks && cost.intervalWeeks > 0) {
-    return cost.intervalWeeks === 1 ? 'varje vecka' : `var ${cost.intervalWeeks}:e vecka`;
-  }
-  if (cost.intervalMonths === 1) return 'varje månad';
-  if (cost.intervalMonths === 12) return 'årsvis';
-  if (cost.intervalMonths === 3) return 'kvartalsvis';
-  if (cost.intervalMonths === 6) return 'halvårsvis';
-  return `var ${cost.intervalMonths}:e månad`;
+/**
+  * How the cadence reads on a row, e.g. "var 8:e vecka". Takes the dictionary
+  * rather than importing it, so the domain stays free of UI dependencies.
+  */
+export function intervalLabel(cost: RecurringCost, t: Text): string {
+  if (cost.intervalWeeks && cost.intervalWeeks > 0) return t.intervalEveryNWeeks(cost.intervalWeeks);
+  if (cost.intervalMonths === 1) return t.intervalMonthly;
+  if (cost.intervalMonths === 12) return t.intervalYearly;
+  if (cost.intervalMonths === 3) return t.intervalQuarterly;
+  if (cost.intervalMonths === 6) return t.intervalHalfYearly;
+  return t.intervalEveryNMonths(cost.intervalMonths);
 }
 
 /** Upcoming charge months, for display in the list. */
@@ -377,7 +379,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   });
 
   // Actual cash flow on the joint account: lumpy, not smoothed.
-  const outflowItems: { label: string; amount: number }[] = [];
+  const outflowItems: { label: string; amount: number; oneOff?: boolean }[] = [];
   for (const cost of liveCosts) {
     if (cost.payerId) continue;
     const times = chargesIn(cost, month);
@@ -389,7 +391,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   }
   for (const cost of budget.oneOffCosts) {
     if (cost.payerId || cost.start !== month) continue;
-    outflowItems.push({ label: `${cost.description} (engång)`, amount: cost.total });
+    outflowItems.push({ label: cost.description, amount: cost.total, oneOff: true });
   }
   for (const line of loanLines) {
     if (line.loan.payerId || line.total <= 0) continue;
@@ -435,7 +437,7 @@ export interface ForecastPoint {
   inflow: number;
   outflow: number;
   closing: number;
-  items: { label: string; amount: number }[];
+  items: { label: string; amount: number; oneOff?: boolean }[];
 }
 
 export function forecast(budget: Budget, months: number): ForecastPoint[] {

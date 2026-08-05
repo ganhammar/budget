@@ -194,7 +194,8 @@ api.MapPut("/members/{id}", async (
             var invite = Messages.Invite(
                 meta?.Household.Name ?? "hushållet",
                 caller.Member?.Name ?? "Någon",
-                mail.AppUrl);
+                mail.AppUrl,
+                member.Language);
             try
             {
                 await mail.SendAsync(member.Email, invite.Subject, invite.Body, ct);
@@ -238,7 +239,8 @@ api.MapPost("/members/{id}/invite", async (
     var invite = Messages.Invite(
         meta?.Household.Name ?? "hushållet",
         caller.Member?.Name ?? "Någon",
-        mail.AppUrl);
+        mail.AppUrl,
+        member.Language);
 
     try
     {
