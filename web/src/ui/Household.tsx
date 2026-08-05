@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useStore, useBudget, newId } from '../store/store';
-import type { Member, Role } from '../domain/types';
+import type { Language, Member, Role, ThemeChoice } from '../domain/types';
 import { sek } from '../domain/format';
 import { Card, Field, ListRow, Note, Sheet } from './components';
 import { api } from '../api/client';
+import { defaultLanguage, rememberLanguage } from '../settings';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,6 +32,22 @@ export function Household() {
   function openMember(member: Member) {
     setResend('idle');
     setSelected(member);
+  }
+
+  /** Preferences are per person, so they always write to your own member record. */
+  function setLanguage(language: Language) {
+    rememberLanguage(language);
+    update((b) => ({
+      ...b,
+      members: b.members.map((m) => (m.id === me.id ? { ...m, language } : m)),
+    }));
+  }
+
+  function setTheme(theme: ThemeChoice) {
+    update((b) => ({
+      ...b,
+      members: b.members.map((m) => (m.id === me.id ? { ...m, theme } : m)),
+    }));
   }
 
   function rename() {
@@ -150,6 +167,28 @@ export function Household() {
             Inloggad som <strong>{signedInEmail}</strong> via Google.
           </Note>
         </div>
+
+        <Field label="Språk">
+          <select
+            value={me.language ?? defaultLanguage()}
+            onChange={(e) => setLanguage(e.target.value as Language)}
+          >
+            <option value="sv">Svenska</option>
+            <option value="en">English</option>
+          </select>
+        </Field>
+
+        <Field label="Utseende">
+          <select
+            value={me.theme ?? 'system'}
+            onChange={(e) => setTheme(e.target.value as ThemeChoice)}
+          >
+            <option value="system">Systemets inställning</option>
+            <option value="light">Ljust</option>
+            <option value="dark">Mörkt</option>
+          </select>
+        </Field>
+
         <button className="btn btn-secondary" onClick={() => void signOut()}>
           Logga ut
         </button>

@@ -3,13 +3,20 @@ namespace Budget.Api;
 /// <summary>A month on the form "2026-08".</summary>
 public sealed record Household(string Id, string Name, string Created);
 
+/// <summary>
+/// Preferences are optional: records written before they existed simply have null,
+/// which means the defaults. Language is stored rather than derived because the
+/// reminder mails are composed server-side, with no browser to ask.
+/// </summary>
 public sealed record Member(
     string Id,
     string Name,
     string Email,
     string Role,
     string Status,
-    decimal BaselineIncome);
+    decimal BaselineIncome,
+    string? Language = null,
+    string? Theme = null);
 
 public sealed record IncomeEntry(string MemberId, string Month, decimal Amount, string? EnteredById);
 

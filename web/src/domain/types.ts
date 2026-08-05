@@ -14,6 +14,9 @@ export interface Household {
  * A member of the household. `invited` means the email is registered but the
  * person has not signed in yet, so they are excluded from the split.
  */
+export type Language = 'sv' | 'en';
+export type ThemeChoice = 'system' | 'light' | 'dark';
+
 export interface Member {
   id: string;
   name: string;
@@ -22,6 +25,9 @@ export interface Member {
   status: 'active' | 'invited';
   /** Baseline monthly income, used for future months and as a fallback. */
   baselineIncome: number;
+  /** Absent means the defaults: the browser's language and the system theme. */
+  language?: Language;
+  theme?: ThemeChoice;
 }
 
 /**

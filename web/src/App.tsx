@@ -8,6 +8,7 @@ import { OneOffCosts } from './ui/OneOffCosts';
 import { Loans } from './ui/Loans';
 import { Income } from './ui/Income';
 import { Household } from './ui/Household';
+import { storedTheme, useTheme } from './settings';
 
 const TABS = [
   { key: 'overview', label: 'Översikt', View: Overview },
@@ -28,8 +29,12 @@ function useHash() {
 }
 
 export default function App() {
-  const { signedIn, budget, loading, error } = useStore();
+  const { signedIn, budget, loading, error, me } = useStore();
   const hash = useHash();
+
+  // Falls back to the local mirror rather than 'system' while the budget loads,
+  // or an explicit choice would be overridden by the OS for the first moment.
+  useTheme(me?.theme ?? storedTheme());
 
   if (loading) return <p className="empty">Hämtar budgeten…</p>;
   if (!signedIn) return <SignIn />;
