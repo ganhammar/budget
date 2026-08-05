@@ -1,14 +1,26 @@
 import type { Month } from './types';
 
-const MONTH_NAMES = [
-  'januari', 'februari', 'mars', 'april', 'maj', 'juni',
-  'juli', 'augusti', 'september', 'oktober', 'november', 'december',
-];
+/** Month names follow the active language; see setMonthLanguage. */
+const NAMES = {
+  sv: {
+    long: ['januari', 'februari', 'mars', 'april', 'maj', 'juni',
+      'juli', 'augusti', 'september', 'oktober', 'november', 'december'],
+    short: ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+      'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
+  },
+  en: {
+    long: ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'],
+    short: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  },
+} as const;
 
-const SHORT_NAMES = [
-  'jan', 'feb', 'mar', 'apr', 'maj', 'jun',
-  'jul', 'aug', 'sep', 'okt', 'nov', 'dec',
-];
+let names: (typeof NAMES)['sv' | 'en'] = NAMES.sv;
+
+export function setMonthLanguage(language: 'sv' | 'en'): void {
+  names = NAMES[language];
+}
 
 /** Months since year zero, which makes comparison and arithmetic trivial. */
 export function toIndex(m: Month): number {
@@ -40,12 +52,12 @@ export function currentDayOfMonth(): number {
 
 export function formatMonth(m: Month): string {
   const [year, month] = m.split('-');
-  return `${MONTH_NAMES[Number(month) - 1]} ${year}`;
+  return `${names.long[Number(month) - 1]} ${year}`;
 }
 
 export function formatMonthShort(m: Month): string {
   const [year, month] = m.split('-');
-  return `${SHORT_NAMES[Number(month) - 1]} ${year.slice(2)}`;
+  return `${names.short[Number(month) - 1]} ${year.slice(2)}`;
 }
 
 /** Inclusive list of months from `from` to `to`. */
