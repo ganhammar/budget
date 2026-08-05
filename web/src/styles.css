@@ -146,6 +146,85 @@ body {
   display: none;
 }
 
+/* ---------- Loading ---------- */
+
+.loading {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: var(--ink);
+}
+
+.loading-mark {
+  width: 76px;
+  height: 76px;
+}
+
+/*
+ * pathLength normalises the polyline to 1, so the dash arithmetic is independent of
+ * the geometry: offset 1 leaves the gap over the line, 0 is the finished logo, and
+ * -1 has run the dash off the far end. One pass therefore draws the line from the
+ * bottom left and then clears it in the same direction, so the loop never jumps.
+ */
+.loading-line {
+  stroke-dasharray: 1;
+  animation: trace 1.9s ease-in-out infinite;
+}
+
+.loading-dot {
+  animation: trace-dot 1.9s ease-in-out infinite;
+}
+
+@keyframes trace {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  45%,
+  62% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+
+/* The dot lands as the line reaches it and leaves before the line clears. */
+@keyframes trace-dot {
+  0%,
+  42% {
+    opacity: 0;
+  }
+  50%,
+  60% {
+    opacity: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.loading-label {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-line,
+  .loading-dot {
+    animation: none;
+  }
+
+  .loading-line {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* ---------- Sections replace cards ---------- */
 
 /*

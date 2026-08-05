@@ -9,6 +9,7 @@ import { Loans } from './ui/Loans';
 import { Income } from './ui/Income';
 import { Household } from './ui/Household';
 import { storedTheme, useTheme } from './settings';
+import { Loading } from './ui/Loading';
 import { useText, type Text } from './i18n';
 
 const TABS = [
@@ -48,7 +49,7 @@ export default function App() {
   useTheme(me?.theme ?? storedTheme());
   const t = useText();
 
-  if (loading) return <p className="empty">{t.loadingBudget}</p>;
+  if (loading) return <Loading label={t.loadingBudget} />;
   if (!signedIn) return <SignIn />;
   if (!budget) return <Onboarding />;
 
