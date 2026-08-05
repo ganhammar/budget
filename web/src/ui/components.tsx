@@ -113,6 +113,7 @@ export function ListRow({
   amount,
   amountNote,
   badge,
+  estimate,
   onClick,
 }: {
   title: string;
@@ -120,6 +121,8 @@ export function ListRow({
   amount: string;
   amountNote?: string;
   badge?: string;
+  /** Greys the figure to mark it as derived rather than entered. */
+  estimate?: boolean;
   onClick?: () => void;
 }) {
   return (
@@ -130,7 +133,7 @@ export function ListRow({
         </span>
         {subtitle && <span className="row-sub">{subtitle}</span>}
       </span>
-      <span className="row-amount">
+      <span className={`row-amount ${estimate ? 'estimate' : ''}`}>
         {amount}
         {amountNote && <span>{amountNote}</span>}
       </span>

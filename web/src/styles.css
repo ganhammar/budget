@@ -826,20 +826,30 @@ select:focus {
   cursor: pointer;
 }
 
-.banner-text {
+/* ---------- Asking for the month's income ---------- */
+
+/* Inside a card the question is the primary action, so it is set off from the
+   figures below it by the same rule the list rows use. */
+.ask {
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.ask-text {
   margin: 4px 0 10px;
   font-size: 14px;
   color: var(--ink-2);
 }
 
-.banner-input {
+.ask-input {
   display: flex;
   gap: 12px;
   align-items: flex-end;
   margin-bottom: 6px;
 }
 
-.banner-input .btn {
+.ask-input .btn {
   flex: 0 0 auto;
 }
 

@@ -11,6 +11,7 @@ import { incomeFor } from '../domain/engine';
 import { sek } from '../domain/format';
 import { addMonths, currentMonth, formatMonth, formatMonthShort } from '../domain/month';
 import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
+import { ConfirmIncome } from './ConfirmIncome';
 
 export function Income() {
   const { budget, me, isAdmin, update } = useBudget();
@@ -22,6 +23,7 @@ export function Income() {
   const members = activeMembers(budget);
   const history = incomeHistory(budget, thisMonth);
   const awaiting = membersAwaitingIncome(budget, thisMonth);
+  const myIncomeConfirmed = hasConfirmedIncome(budget, me.id, thisMonth);
 
   function setBaseline(memberId: string, amount: number) {
     update((b) => ({
@@ -72,7 +74,24 @@ export function Income() {
 
   return (
     <>
-      <Card title={`Denna månad · ${formatMonth(thisMonth)}`}>
+      <Card
+        title={`Denna månad · ${formatMonth(thisMonth)}`}
+        action={
+          myIncomeConfirmed ? (
+            <button className="btn btn-small btn-secondary" onClick={() => openEditor(thisMonth)}>
+              Ändra
+            </button>
+          ) : undefined
+        }
+      >
+        {/* The whole point of the tab: answer it before anything else is shown. */}
+        {!myIncomeConfirmed && (
+          <div className="ask">
+            <p className="ask-text">Vad fick du in i {formatMonth(thisMonth)}?</p>
+            <ConfirmIncome month={thisMonth} />
+          </div>
+        )}
+
         <div className="list">
           {members.map((member) => {
             const confirmed = hasConfirmedIncome(budget, member.id, thisMonth);
@@ -89,6 +108,9 @@ export function Income() {
                     : `Räknar med normalt ${sek(member.baselineIncome)}`
                 }
                 amount={sek(incomeFor(budget, member.id, thisMonth))}
+                // An unconfirmed figure is the baseline carried forward, not a
+                // fact. Same grey as the estimates in the history table.
+                estimate={!confirmed}
                 onClick={canEditIncomeFor(me, member.id) ? () => openEditor(thisMonth) : undefined}
               />
             );
@@ -97,8 +119,8 @@ export function Income() {
         {isAdmin && awaiting.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <Note>
-              Väntar på {awaiting.map((m) => m.name).join(', ')}. Som administratör kan du fylla i
-              åt dem.
+              Väntar på {awaiting.map((m) => m.name).join(', ')}. Som administratör kan du trycka på
+              raden för att fylla i åt dem.
             </Note>
           </div>
         )}

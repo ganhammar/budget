@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import { useBudget } from '../store/store';
 import { shouldPromptForIncome } from '../domain/income';
-import { sek } from '../domain/format';
 import { currentDayOfMonth, currentMonth, formatMonth } from '../domain/month';
-import { AmountInput } from './components';
+import { ConfirmIncome } from './ConfirmIncome';
 
 /**
  * Asks the signed-in member for their own income once a month, from the second
- * week onwards. Closing it stores the dismissal so it stays closed everywhere.
+ * week onwards. The income tab asks the same question in its own words; this is
+ * the prompt for everywhere else.
  */
 export function IncomeBanner() {
-  const { budget, me, update } = useBudget();
+  const { budget, me } = useBudget();
   const month = currentMonth();
-  const [amount, setAmount] = useState<number | ''>(me.baselineIncome || '');
   // Closing it lasts for this visit only. It is a reminder, so one stray tap
   // should not silence it for the rest of the month.
   const [closed, setClosed] = useState(false);
@@ -20,37 +19,16 @@ export function IncomeBanner() {
   if (closed) return null;
   if (!shouldPromptForIncome(budget, me.id, month, currentDayOfMonth())) return null;
 
-  function confirm() {
-    const value = amount === '' ? me.baselineIncome : amount;
-    update((b) => ({
-      ...b,
-      income: [
-        ...b.income.filter((i) => !(i.memberId === me.id && i.month === month)),
-        { memberId: me.id, month, amount: value },
-      ],
-    }));
-  }
-
-  function dismiss() {
-    setClosed(true);
-  }
-
   return (
     <section className="banner">
       <div className="banner-head">
         <span className="banner-title">Inkomst för {formatMonth(month)}</span>
-        <button className="banner-close" onClick={dismiss} aria-label="Stäng">
+        <button className="banner-close" onClick={() => setClosed(true)} aria-label="Stäng">
           ×
         </button>
       </div>
-      <p className="banner-text">Vad fick du in den här månaden?</p>
-      <div className="banner-input">
-        <AmountInput value={amount} onChange={setAmount} step={100} />
-        <button className="btn" onClick={confirm}>
-          Bekräfta
-        </button>
-      </div>
-      <span className="hint">Normalt {sek(me.baselineIncome)}. Du kan ändra det senare.</span>
+      <p className="ask-text">Vad fick du in den här månaden?</p>
+      <ConfirmIncome month={month} />
     </section>
   );
 }
