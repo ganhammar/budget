@@ -64,6 +64,12 @@ export const api = {
       body: JSON.stringify({ householdName, name }),
     }),
 
+  setCategories: (categories: string[]) =>
+    request<void>('/household/categories', {
+      method: 'PUT',
+      body: JSON.stringify({ categories }),
+    }),
+
   renameHousehold: (name: string) =>
     request<void>('/household', { method: 'PUT', body: JSON.stringify({ name }) }),
 

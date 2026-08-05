@@ -1,7 +1,11 @@
 namespace Budget.Api;
 
-/// <summary>A month on the form "2026-08".</summary>
-public sealed record Household(string Id, string Name, string Created);
+/// <summary>
+/// Categories belong to the household so each one can name its own. Null means the
+/// household predates the setting; the client falls back to the categories its costs
+/// already use, so nothing needs migrating.
+/// </summary>
+public sealed record Household(string Id, string Name, string Created, List<string>? Categories = null);
 
 /// <summary>
 /// Preferences are optional: records written before they existed simply have null,
@@ -97,6 +101,8 @@ public sealed record UserProfile(string Email, string HouseholdId, string Member
 public sealed record CreateHouseholdRequest(string HouseholdName, string Name);
 
 public sealed record RenameHouseholdRequest(string Name);
+
+public sealed record CategoriesRequest(List<string> Categories);
 
 public sealed record PutIncomeRequest(decimal Amount, string? EnteredById);
 

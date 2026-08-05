@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useBudget, newId } from '../store/store';
-import { CATEGORIES, INTERVALS, WEEK_INTERVALS, type RecurringCost } from '../domain/types';
+import {
+  categoriesFor,
+  DEFAULT_CATEGORIES,
+  INTERVALS,
+  WEEK_INTERVALS,
+  type RecurringCost,
+} from '../domain/types';
 import {
   intervalLabel,
   isCostPaused,
@@ -13,10 +19,13 @@ import { currentMonth, formatMonth, formatMonthShort } from '../domain/month';
 import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet } from './components';
 import { monthIntervalLabel, useText, weekIntervalLabel } from '../i18n';
 
-function blank(): RecurringCost {
+/** Sentinel option value; a real category can never be the empty string. */
+const NEW_CATEGORY = '';
+
+function blank(first: string): RecurringCost {
   return {
     id: newId(),
-    category: 'Hus',
+    category: first,
     description: '',
     amount: 0,
     intervalMonths: 1,
@@ -30,6 +39,10 @@ export function RecurringCosts() {
   const [draft, setDraft] = useState<RecurringCost | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
+  // Non-null while the category field is a text box rather than the dropdown.
+  const [newCategory, setNewCategory] = useState<string | null>(null);
+
+  const categories = categoriesFor(budget);
 
   const thisMonth = currentMonth();
 
@@ -49,13 +62,30 @@ export function RecurringCosts() {
 
   function save() {
     if (!draft || !draft.description.trim()) return;
+
+    const category = (newCategory ?? draft.category).trim();
+    if (!category) return;
+    const cost = { ...draft, category };
+
+    // A category the household has not seen before is added to its list in the same
+    // write, so it is offered next time even before any cost is saved against it.
+    const known = categories.some((c) => c.toLowerCase() === category.toLowerCase());
+
     update((b) => ({
       ...b,
+      household: known
+        ? b.household
+        : { ...b.household, categories: [...(b.household.categories ?? DEFAULT_CATEGORIES), category] },
       recurringCosts: isNew
-        ? [...b.recurringCosts, draft]
-        : b.recurringCosts.map((c) => (c.id === draft.id ? draft : c)),
+        ? [...b.recurringCosts, cost]
+        : b.recurringCosts.map((c) => (c.id === cost.id ? cost : c)),
     }));
+    closeSheet();
+  }
+
+  function closeSheet() {
     setDraft(null);
+    setNewCategory(null);
   }
 
   /**
@@ -71,7 +101,7 @@ export function RecurringCosts() {
       ...b,
       recurringCosts: b.recurringCosts.map((c) => (c.id === cost.id ? { ...c, periods } : c)),
     }));
-    setDraft(null);
+    closeSheet();
   }
 
   /** Opens a fresh period, leaving the gap in place. */
@@ -81,13 +111,13 @@ export function RecurringCosts() {
       ...b,
       recurringCosts: b.recurringCosts.map((c) => (c.id === cost.id ? { ...c, periods } : c)),
     }));
-    setDraft(null);
+    closeSheet();
   }
 
   function remove() {
     if (!draft) return;
     update((b) => ({ ...b, recurringCosts: b.recurringCosts.filter((c) => c.id !== draft.id) }));
-    setDraft(null);
+    closeSheet();
   }
 
   return (
@@ -98,7 +128,8 @@ export function RecurringCosts() {
           <button
             className="btn btn-small"
             onClick={() => {
-              setDraft(blank());
+              setNewCategory(null);
+              setDraft(blank(categories[0] ?? ''));
               setIsNew(true);
             }}
           >
@@ -129,6 +160,7 @@ export function RecurringCosts() {
                     amount={sek(monthlyAmount(cost))}
                     amountNote={t.perMonth}
                     onClick={() => {
+                      setNewCategory(null);
                       setDraft({ ...cost });
                       setIsNew(false);
                     }}
@@ -166,6 +198,7 @@ export function RecurringCosts() {
                       amount={sek(monthlyAmount(cost))}
                       amountNote={t.perMonth}
                       onClick={() => {
+                        setNewCategory(null);
                         setDraft({ ...cost });
                         setIsNew(false);
                       }}
@@ -179,7 +212,7 @@ export function RecurringCosts() {
       )}
 
       {draft && (
-        <Sheet title={isNew ? t.newCost : t.editCost} onClose={() => setDraft(null)}>
+        <Sheet title={isNew ? t.newCost : t.editCost} onClose={closeSheet}>
           <Field label={t.description}>
             <input
               autoFocus
@@ -189,14 +222,39 @@ export function RecurringCosts() {
             />
           </Field>
           <Field label={t.category}>
-            <select
-              value={draft.category}
-              onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+            {newCategory === null ? (
+              <select
+                value={draft.category}
+                onChange={(e) =>
+                  e.target.value === NEW_CATEGORY
+                    ? setNewCategory('')
+                    : setDraft({ ...draft, category: e.target.value })
+                }
+              >
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value={NEW_CATEGORY}>{t.newCategory}</option>
+              </select>
+            ) : (
+              <>
+                <input
+                  autoFocus
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder={t.newCategoryPlaceholder}
+                />
+                <button
+                  className="btn btn-small btn-secondary"
+                  style={{ alignSelf: 'flex-start', marginTop: 8 }}
+                  onClick={() => setNewCategory(null)}
+                >
+                  {t.pickExistingCategory}
+                </button>
+              </>
+            )}
           </Field>
           <div className="field-pair">
             <Field label={t.amountPerCharge}>

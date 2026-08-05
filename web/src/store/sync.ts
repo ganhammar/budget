@@ -38,6 +38,12 @@ export function planSync(previous: Budget, next: Budget): Promise<unknown>[] {
     calls.push(api.renameHousehold(next.household.name));
   }
 
+  const beforeCategories = previous.household.categories;
+  const afterCategories = next.household.categories;
+  if (afterCategories && JSON.stringify(beforeCategories) !== JSON.stringify(afterCategories)) {
+    calls.push(api.setCategories(afterCategories));
+  }
+
   const before = previous.accountBalance;
   const after = next.accountBalance;
   if (after && (!before || before.month !== after.month || before.amount !== after.amount)) {

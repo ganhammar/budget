@@ -8,6 +8,8 @@ export interface Household {
   id: string;
   name: string;
   created: Month;
+  /** Absent on households created before categories were editable. */
+  categories?: string[];
 }
 
 /**
@@ -152,8 +154,30 @@ export function activeMembers(budget: Budget): Member[] {
   return budget.members.filter((m) => m.status === 'active');
 }
 
-/** Category names are user data rather than interface text, so they are not translated. */
-export const CATEGORIES = ['Hus', 'Barn', 'Mat', 'Media', 'Husdjur', 'Bil', 'Övrigt'];
+/**
+ * Only a starting point for a household that has never set its own. Category names
+ * are user data rather than interface text, so they are not translated.
+ */
+export const DEFAULT_CATEGORIES = ['Hus', 'Barn', 'Mat', 'Media', 'Husdjur', 'Bil', 'Övrigt'];
+
+/**
+ * The categories to offer. Whatever the household has chosen, plus any category its
+ * costs already reference: a name in use must never drop out of the list, or editing
+ * that cost would silently move it somewhere else.
+ */
+export function categoriesFor(budget: Budget): string[] {
+  const chosen = budget.household.categories ?? DEFAULT_CATEGORIES;
+  const inUse = budget.recurringCosts.map((c) => c.category);
+  const seen = new Set<string>();
+  const all: string[] = [];
+  for (const name of [...chosen, ...inUse]) {
+    const key = name.trim().toLowerCase();
+    if (!name.trim() || seen.has(key)) continue;
+    seen.add(key);
+    all.push(name.trim());
+  }
+  return all.sort((a, b) => a.localeCompare(b, 'sv'));
+}
 
 /** Week-based cadences, for billing that does not align to months. */
 export const WEEK_INTERVALS = [1, 2, 4, 6, 8, 12];

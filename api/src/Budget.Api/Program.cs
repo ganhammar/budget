@@ -151,6 +151,30 @@ api.MapPut("/household", async (
     return Results.NoContent();
 });
 
+// Kept to a sane size and shape here rather than trusting the client: these end up
+// as labels on every cost row.
+api.MapPut("/household/categories", async (
+    CategoriesRequest request, HttpContext ctx, BudgetStore store, SessionTokens sessions,
+    CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+
+    var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
+    if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
+
+    var cleaned = request.Categories
+        .Select(c => c.Trim())
+        .Where(c => c.Length is > 0 and <= 40)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(50)
+        .ToList();
+
+    await store.PutMetaAsync(
+        meta with { Household = meta.Household with { Categories = cleaned } }, ct);
+    return Results.NoContent();
+});
+
 api.MapPut("/account-balance", async (
     AccountBalance balance, HttpContext ctx, BudgetStore store, SessionTokens sessions,
     CancellationToken ct) =>
