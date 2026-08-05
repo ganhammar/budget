@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { useText } from '../i18n';
 
 export function Card({
   title,
@@ -176,9 +177,10 @@ export function PayerSelect({
   value: string | undefined;
   onChange: (payerId: string | undefined) => void;
 }) {
+  const t = useText();
   return (
     <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
-      <option value="">Gemensamt</option>
+      <option value="">{t.joint}</option>
       {members
         .filter((m) => m.status === 'active')
         .map((m) => (
@@ -210,6 +212,7 @@ export function MultiSelect({
   onChange: (next: string[]) => void;
   allLabel: string;
 }) {
+  const t = useText();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -231,13 +234,13 @@ export function MultiSelect({
     selected.length === options.length
       ? allLabel
       : selected.length === 0
-        ? 'Inget valt'
+        ? t.nothingSelected
         : selected.length <= 2
           ? options
               .filter((o) => selected.includes(o.value))
               .map((o) => o.label)
               .join(', ')
-          : `${selected.length} av ${options.length}`;
+          : t.nOfM(selected.length, options.length);
 
   function toggle(value: string) {
     onChange(

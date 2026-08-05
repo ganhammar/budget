@@ -3,6 +3,7 @@ import type { DebtPoint } from '../domain/engine';
 import type { Loan } from '../domain/types';
 import { sek } from '../domain/format';
 import { formatMonth, formatMonthShort } from '../domain/month';
+import { useText } from '../i18n';
 
 // Right margin holds the direct labels: identity comes from the name at the end
 // of each line, not from its shade.
@@ -33,6 +34,7 @@ interface ChartProps {
 
 export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   const { ref, width } = useWidth<HTMLDivElement>();
+  const t = useText();
 
   // Sizes and the pointer hook come before the early return: hooks cannot run
   // conditionally, and these depend only on the measured width.
@@ -93,7 +95,7 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
         viewBox={`0 0 ${w} ${HEIGHT}`}
         {...handlers}
         role="img"
-        aria-label="Skuld per lån över tid"
+        aria-label={t.debtChartLabel}
       >
         {[max, max / 2, 0].map((v) => (
           <g key={v}>
@@ -182,7 +184,7 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
             </div>
           ))}
           <div className="tooltip-row total">
-            <span>Totalt</span>
+            <span>{t.total}</span>
             <strong>{sek(total)}</strong>
           </div>
         </div>
@@ -192,11 +194,11 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
             {loans.map((loan) => (
               <span className="legend-item" key={loan.id}>
                 {loan.description}
-                <em>{payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : 'amorteras inte'}</em>
+                <em>{payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : t.notAmortized}</em>
               </span>
             ))}
           </div>
-          <span className="hint">Peka på grafen för skulden en viss månad.</span>
+          <span className="hint">{t.pointForDebt}</span>
         </div>
       </div>
     </div>
@@ -204,6 +206,7 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
 }
 
 export function DebtTable({ points, loans }: { points: DebtPoint[]; loans: Loan[] }) {
+  const t = useText();
   // One row per year keeps this readable over a payoff that runs for decades.
   const yearly = points.filter((p, i) => i === 0 || p.month.endsWith('-01'));
 
@@ -212,11 +215,11 @@ export function DebtTable({ points, loans }: { points: DebtPoint[]; loans: Loan[
       <table className="table">
         <thead>
           <tr>
-            <th>Månad</th>
+            <th>{t.monthLabel}</th>
             {loans.map((l) => (
               <th key={l.id}>{l.description}</th>
             ))}
-            <th>Totalt</th>
+            <th>{t.total}</th>
           </tr>
         </thead>
         <tbody>

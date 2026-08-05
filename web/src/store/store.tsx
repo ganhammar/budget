@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import type { Budget, Member } from '../domain/types';
 import { api, ApiError } from '../api/client';
 import { planSync } from './sync';
+import { textFor } from '../i18n';
+import { defaultLanguage, storedLanguage } from '../settings';
 
 export function newId(): string {
   return crypto.randomUUID();
@@ -34,6 +36,11 @@ interface Store {
   signIn: (googleCredential: string) => Promise<void>;
   signOut: () => Promise<void>;
   createHousehold: (householdName: string, name: string) => Promise<void>;
+}
+
+/** Store errors are raised outside the tree, so they resolve the language themselves. */
+function messages() {
+  return textFor(storedLanguage() ?? defaultLanguage());
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -69,7 +76,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setSignedIn(false);
         setBudget(null);
       } else {
-        setError(e instanceof Error ? e.message : 'Kunde inte hämta budgeten.');
+        setError(e instanceof Error ? e.message : messages().errorLoad);
       }
     } finally {
       setLoading(false);
@@ -97,8 +104,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         setError(
           e instanceof ApiError && e.status === 401
-            ? 'Google godkände inte inloggningen.'
-            : 'Inloggningen misslyckades.',
+            ? messages().errorGoogle
+            : messages().errorSignIn,
         );
       } finally {
         setLoading(false);
@@ -129,7 +136,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         queue.current = queue.current
           .then(() => Promise.all(calls))
           .catch((e: unknown) => {
-            setError(e instanceof Error ? e.message : 'Ändringen kunde inte sparas.');
+            setError(e instanceof Error ? e.message : messages().errorSave);
           });
       }
       return next;
@@ -144,7 +151,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setBudget(created);
       setMemberId(created.members[0]?.id ?? null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Hushållet kunde inte skapas.');
+      setError(e instanceof Error ? e.message : messages().errorCreateHousehold);
     } finally {
       setLoading(false);
     }

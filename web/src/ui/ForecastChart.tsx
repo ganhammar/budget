@@ -2,6 +2,7 @@ import { useWidth, usePointerIndex } from './chart';
 import type { ForecastPoint } from '../domain/engine';
 import { sek } from '../domain/format';
 import { formatMonth, formatMonthShort } from '../domain/month';
+import { useText } from '../i18n';
 
 const MARGIN = { top: 12, right: 8, bottom: 22, left: 46 };
 const HEIGHT = 190;
@@ -11,6 +12,7 @@ const ITEM_SLOTS = [0, 1, 2];
 
 export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const { ref, width } = useWidth<HTMLDivElement>();
+  const t = useText();
 
   // Sizes and the pointer hook come before the early return: hooks cannot run
   // conditionally, and these depend only on the measured width.
@@ -56,7 +58,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
         viewBox={`0 0 ${w} ${HEIGHT}`}
         {...handlers}
         role="img"
-        aria-label="Prognos för saldot på gemensamt konto"
+        aria-label={t.forecastChartLabel}
       >
         {ticks.map((v) => (
           <g key={v}>
@@ -119,17 +121,17 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
         <div className="detail-layer" data-hidden={selected === null} aria-hidden={selected === null}>
           <div className="tooltip-month">{formatMonth((selected ?? points[0]).month)}</div>
           <div className="tooltip-row">
-            <span>Saldo vid månadens slut</span>
+            <span>{t.balanceAtMonthEnd}</span>
             <strong className={(selected?.closing ?? 0) < 0 ? 'negative' : ''}>
               {sek((selected ?? points[0]).closing)}
             </strong>
           </div>
           <div className="tooltip-row">
-            <span>In från medlemmarna</span>
+            <span>{t.inFromMembers}</span>
             <span>{sek((selected ?? points[0]).inflow)}</span>
           </div>
           <div className="tooltip-row">
-            <span>Ut från kontot</span>
+            <span>{t.outFromAccount}</span>
             <span>{sek((selected ?? points[0]).outflow)}</span>
           </div>
           {ITEM_SLOTS.map((slot) => {
@@ -146,9 +148,9 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
         <div className="detail-layer" data-hidden={selected !== null} aria-hidden={selected !== null}>
           <span className="hint">
             {firstNegative
-              ? `Kontot går under noll i ${formatMonth(firstNegative.month)}.`
-              : 'Kontot håller sig över noll i hela perioden.'}{' '}
-            Peka på grafen för detaljer.
+              ? t.goesBelowZero(formatMonth(firstNegative.month))
+              : t.staysAboveZero}{' '}
+            {t.pointForDetails}
           </span>
         </div>
       </div>
@@ -157,16 +159,17 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
 }
 
 export function ForecastTable({ points }: { points: ForecastPoint[] }) {
+  const t = useText();
   return (
     <div className="scroll-x">
       <table className="table">
         <thead>
           <tr>
-            <th>Månad</th>
-            <th>Ingående</th>
-            <th>In</th>
-            <th>Ut</th>
-            <th>Utgående</th>
+            <th>{t.monthLabel}</th>
+            <th>{t.opening}</th>
+            <th>{t.incomingShort}</th>
+            <th>{t.outgoingShort}</th>
+            <th>{t.closing}</th>
           </tr>
         </thead>
         <tbody>

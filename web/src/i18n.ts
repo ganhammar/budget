@@ -1,5 +1,8 @@
-import { useBudget } from './store/store';
+import { useMemo } from 'react';
+import { useStore } from './store/store';
 import type { Language } from './domain/types';
+import { setLocale } from './domain/format';
+import { setMonthLanguage } from './domain/month';
 import { defaultLanguage, storedLanguage } from './settings';
 
 /**
@@ -280,6 +283,8 @@ const sv = {
   intervalEveryNWeeks: (n: number) => (n === 1 ? 'varje vecka' : `var ${n}:e vecka`),
 
   // Rate fixations
+  nothingSelected: 'Inget valt',
+  nOfM: (n: number, m: number) => `${n} av ${m}`,
   fixationFloating: '3 mån (rörlig)',
   fixationYears: (n: number) => (n === 1 ? '1 år' : `${n} år`),
 } as const;
@@ -539,6 +544,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   intervalEveryNMonths: (n: number) => `every ${n} months`,
   intervalEveryNWeeks: (n: number) => (n === 1 ? 'every week' : `every ${n} weeks`),
 
+  nothingSelected: 'Nothing selected',
+  nOfM: (n: number, m: number) => `${n} of ${m}`,
   fixationFloating: '3 mo (floating)',
   fixationYears: (n: number) => (n === 1 ? '1 year' : `${n} years`),
 };
@@ -551,12 +558,23 @@ export function textFor(language: Language): Text {
   return DICTIONARIES[language];
 }
 
-/** The active language: your saved choice, else the local mirror, else the browser. */
+/**
+ * The active language: your saved choice, else the local mirror, else the browser.
+ * Reads the store rather than the budget so sign-in and onboarding, which render
+ * before a budget exists, can be translated too.
+ */
 export function useLanguage(): Language {
-  const { me } = useBudget();
-  return me.language ?? storedLanguage() ?? defaultLanguage();
+  const { me } = useStore();
+  return me?.language ?? storedLanguage() ?? defaultLanguage();
 }
 
 export function useText(): Text {
-  return textFor(useLanguage());
+  const language = useLanguage();
+  // Currency and month names live in module state; configure them during render
+  // so anything rendered below this point already formats in the right language.
+  useMemo(() => {
+    setLocale(language);
+    setMonthLanguage(language);
+  }, [language]);
+  return textFor(language);
 }

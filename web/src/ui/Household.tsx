@@ -5,12 +5,14 @@ import { sek } from '../domain/format';
 import { Card, Field, ListRow, Note, Sheet } from './components';
 import { api } from '../api/client';
 import { defaultLanguage, rememberLanguage } from '../settings';
+import { useText } from '../i18n';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function Household() {
   const { budget, me, isAdmin, update } = useBudget();
   const { signOut, email: signedInEmail } = useStore();
+  const t = useText();
   const [inviting, setInviting] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [email, setEmail] = useState('');
@@ -60,11 +62,11 @@ export function Household() {
   function invite() {
     const cleaned = email.trim().toLowerCase();
     if (!EMAIL.test(cleaned)) {
-      setError('Ange en giltig e-postadress.');
+      setError(t.invalidEmail);
       return;
     }
     if (budget.members.some((m) => m.email.toLowerCase() === cleaned)) {
-      setError('Den adressen finns redan i hushållet.');
+      setError(t.duplicateEmail);
       return;
     }
     update((b) => ({
@@ -124,10 +126,10 @@ export function Household() {
                 className="btn btn-small btn-secondary"
                 onClick={() => setRenaming(budget.household.name)}
               >
-                Byt namn
+                {t.rename}
               </button>
               <button className="btn btn-small" onClick={() => setInviting(true)}>
-                Bjud in
+                {t.invite}
               </button>
             </span>
           ) : undefined
@@ -140,14 +142,14 @@ export function Household() {
               title={member.name}
               badge={
                 member.status === 'invited'
-                  ? 'Inbjuden'
+                  ? t.badgeInvited
                   : member.role === 'admin'
-                    ? 'Admin'
+                    ? t.badgeAdmin
                     : undefined
               }
-              subtitle={member.email + (member.id === me.id ? ' · du' : '')}
+              subtitle={member.email + (member.id === me.id ? ` · ${t.you}` : '')}
               amount={member.status === 'active' ? sek(member.baselineIncome) : '—'}
-              amountNote={member.status === 'active' ? 'normal/mån' : 'ej ansluten'}
+              amountNote={member.status === 'active' ? t.normalPerMonth : t.notConnected}
               onClick={isAdmin ? () => openMember(member) : undefined}
             />
           ))}
@@ -155,20 +157,20 @@ export function Household() {
         {!isAdmin && (
           <div style={{ marginTop: 12 }}>
             <Note>
-              Bara administratörer kan byta namn på hushållet, bjuda in eller ta bort medlemmar.
+              {t.adminOnlyNote}
             </Note>
           </div>
         )}
       </Card>
 
-      <Card title="Konto">
+      <Card title={t.account}>
         <div style={{ marginBottom: 12 }}>
           <Note>
-            Inloggad som <strong>{signedInEmail}</strong> via Google.
+            {t.signedInAs} <strong>{signedInEmail}</strong> {t.signedInVia}
           </Note>
         </div>
 
-        <Field label="Språk">
+        <Field label={t.language}>
           <select
             value={me.language ?? defaultLanguage()}
             onChange={(e) => setLanguage(e.target.value as Language)}
@@ -178,48 +180,48 @@ export function Household() {
           </select>
         </Field>
 
-        <Field label="Utseende">
+        <Field label={t.appearance}>
           <select
             value={me.theme ?? 'system'}
             onChange={(e) => setTheme(e.target.value as ThemeChoice)}
           >
-            <option value="system">Systemets inställning</option>
-            <option value="light">Ljust</option>
-            <option value="dark">Mörkt</option>
+            <option value="system">{t.themeSystem}</option>
+            <option value="light">{t.themeLight}</option>
+            <option value="dark">{t.themeDark}</option>
           </select>
         </Field>
 
         <button className="btn btn-secondary" onClick={() => void signOut()}>
-          Logga ut
+          {t.signOut}
         </button>
       </Card>
 
       {renaming !== null && (
-        <Sheet title="Byt namn på hushållet" onClose={() => setRenaming(null)}>
-          <Field label="Hushållets namn">
+        <Sheet title={t.renameHousehold} onClose={() => setRenaming(null)}>
+          <Field label={t.householdName}>
             <input
               autoFocus
               value={renaming}
               onChange={(e) => setRenaming(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && rename()}
-              placeholder="t.ex. Familjen Svensson"
+              placeholder={t.householdNamePlaceholder}
             />
           </Field>
-          <Note>Namnet syns för alla i hushållet och i inbjudningar som skickas per e-post.</Note>
+          <Note>{t.renameNote}</Note>
           <div className="btn-row">
             <button className="btn btn-secondary" onClick={() => setRenaming(null)}>
-              Avbryt
+              {t.cancel}
             </button>
             <button className="btn" disabled={renaming.trim() === ''} onClick={rename}>
-              Spara
+              {t.save}
             </button>
           </div>
         </Sheet>
       )}
 
       {inviting && (
-        <Sheet title="Bjud in till hushållet" onClose={() => setInviting(false)}>
-          <Field label="E-postadress" hint="Måste vara adressen personen loggar in med via Google.">
+        <Sheet title={t.inviteToHousehold} onClose={() => setInviting(false)}>
+          <Field label={t.emailAddress} hint={t.emailHint}>
             <input
               autoFocus
               type="email"
@@ -231,8 +233,8 @@ export function Household() {
               placeholder="namn@example.com"
             />
           </Field>
-          <Field label="Namn (valfritt)">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Förnamn" />
+          <Field label={t.nameOptional}>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.firstNamePlaceholder} />
           </Field>
           {error && (
             <p className="note" style={{ color: 'var(--critical)' }}>
@@ -240,14 +242,14 @@ export function Household() {
             </p>
           )}
           <Note>
-            Personen räknas inte med i fördelningen förrän hen loggat in första gången.
+            {t.inviteNote}
           </Note>
           <div className="btn-row">
             <button className="btn btn-secondary" onClick={() => setInviting(false)}>
-              Avbryt
+              {t.cancel}
             </button>
             <button className="btn" onClick={invite}>
-              Bjud in
+              {t.invite}
             </button>
           </div>
         </Sheet>
@@ -255,38 +257,38 @@ export function Household() {
 
       {selected && (
         <Sheet title={selected.name} onClose={() => setSelected(null)}>
-          <Field label="Roll">
+          <Field label={t.role}>
             <select
               value={selected.role}
               disabled={selected.role === 'admin' && adminCount === 1}
               onChange={(e) => changeRole(selected.id, e.target.value as Role)}
             >
-              <option value="member">Medlem</option>
-              <option value="admin">Administratör</option>
+              <option value="member">{t.roleMember}</option>
+              <option value="admin">{t.roleAdmin}</option>
             </select>
           </Field>
           {selected.role === 'admin' && adminCount === 1 && (
-            <Note>Hushållet måste ha minst en administratör.</Note>
+            <Note>{t.needOneAdmin}</Note>
           )}
 
           <div className="field">
-            <label>Inbjudan</label>
+            <label>{t.inviteSection}</label>
             <button
               className="btn btn-secondary"
               style={{ alignSelf: 'flex-start' }}
               disabled={resend === 'sending'}
               onClick={() => void resendInvite(selected)}
             >
-              {resend === 'sending' ? 'Skickar…' : 'Skicka inbjudan igen'}
+              {resend === 'sending' ? t.sending : t.resendInvite}
             </button>
-            {resend === 'sent' && <span className="hint">Skickad till {selected.email}.</span>}
+            {resend === 'sent' && <span className="hint">{t.sentTo(selected.email)}</span>}
             {resend === 'error' && (
               <span className="hint" style={{ color: 'var(--neg)' }}>
-                Inbjudan kunde inte skickas.
+                {t.inviteFailed}
               </span>
             )}
             {resend === 'idle' && (
-              <span className="hint">Mejlar en länk till appen. Adressen kopplas till hushållet.</span>
+              <span className="hint">{t.inviteHint}</span>
             )}
           </div>
 
@@ -295,13 +297,13 @@ export function Household() {
               className="btn btn-danger"
               disabled={selected.id === me.id}
               onClick={() => {
-                if (confirm(`Ta bort ${selected.name} från hushållet?`)) removeMember(selected.id);
+                if (confirm(t.confirmRemoveMember(selected.name))) removeMember(selected.id);
               }}
             >
-              Ta bort
+              {t.remove}
             </button>
             <button className="btn btn-secondary" onClick={() => setSelected(null)}>
-              Klar
+              {t.done}
             </button>
           </div>
         </Sheet>

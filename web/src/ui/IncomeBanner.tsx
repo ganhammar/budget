@@ -3,6 +3,7 @@ import { useBudget } from '../store/store';
 import { shouldPromptForIncome } from '../domain/income';
 import { currentDayOfMonth, currentMonth, formatMonth } from '../domain/month';
 import { ConfirmIncome } from './ConfirmIncome';
+import { useText } from '../i18n';
 
 /**
  * Asks the signed-in member for their own income once a month, from the second
@@ -12,6 +13,7 @@ import { ConfirmIncome } from './ConfirmIncome';
 export function IncomeBanner() {
   const { budget, me } = useBudget();
   const month = currentMonth();
+  const t = useText();
   // Closing it lasts for this visit only. It is a reminder, so one stray tap
   // should not silence it for the rest of the month.
   const [closed, setClosed] = useState(false);
@@ -22,12 +24,12 @@ export function IncomeBanner() {
   return (
     <section className="banner">
       <div className="banner-head">
-        <span className="banner-title">Inkomst för {formatMonth(month)}</span>
-        <button className="banner-close" onClick={() => setClosed(true)} aria-label="Stäng">
+        <span className="banner-title">{t.incomeFor(formatMonth(month))}</span>
+        <button className="banner-close" onClick={() => setClosed(true)} aria-label={t.close}>
           ×
         </button>
       </div>
-      <p className="ask-text">Vad fick du in den här månaden?</p>
+      <p className="ask-text">{t.askIncomeShort}</p>
       <ConfirmIncome month={month} />
     </section>
   );

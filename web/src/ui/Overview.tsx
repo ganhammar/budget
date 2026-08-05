@@ -6,11 +6,13 @@ import { currentMonth, formatMonth } from '../domain/month';
 import { Card, Empty, Field, MonthInput, Note, Stat } from './components';
 import { ForecastChart, ForecastTable } from './ForecastChart';
 import { IncomeBanner } from './IncomeBanner';
+import { useText } from '../i18n';
 
 const FORECAST_MONTHS = 24;
 
 export function Overview() {
   const { budget } = useBudget();
+  const t = useText();
   const [month, setMonth] = useState(currentMonth());
   const [showTable, setShowTable] = useState(false);
 
@@ -25,65 +27,64 @@ export function Overview() {
       <IncomeBanner />
 
       {isEmpty && (
-        <Card title="Kom igång">
+        <Card title={t.getStarted}>
           <Note>
-            Lägg in dina återkommande kostnader, lån och inkomster så räknas fördelningen fram här.
-            Börja med <strong>Inkomst</strong> och <strong>Kostnader</strong>.
+            {t.getStartedNote}
           </Note>
         </Card>
       )}
 
-      <Card title="Månad">
-        <Field label="Visar">
+      <Card title={t.monthLabel}>
+        <Field label={t.showing}>
           <MonthInput value={month} onChange={setMonth} />
         </Field>
         <div className="hero">
           <span className="value">{sek(result.surplus)}</span>
           <span className="label">
-            kvar att dela på {result.memberLines.length} ·{' '}
-            <strong>{sek(result.surplusPerMember)}</strong> var
+            {t.leftToSplit(result.memberLines.length)}{' '}
+            <strong>{sek(result.surplusPerMember)}</strong> {t.each}
           </span>
         </div>
       </Card>
 
-      <Card title="Utgifter">
+      <Card title={t.expenses}>
         <div className="stat-grid">
-          <Stat label="Inkomster" value={sek(result.totalIncome)} />
-          <Stat label="Utgifter" value={sek(result.totalCosts)} />
-          <Stat label="Gemensamma" value={sek(result.recurringTotal)} />
-          <Stat label="Lån" value={sek(result.loanTotal)} />
-          <Stat label="Engångskostnader" value={sek(result.oneOffTotal)} />
+          <Stat label={t.incomes} value={sek(result.totalIncome)} />
+          <Stat label={t.expenses} value={sek(result.totalCosts)} />
+          <Stat label={t.shared} value={sek(result.recurringTotal)} />
+          <Stat label={t.loans} value={sek(result.loanTotal)} />
+          <Stat label={t.oneOffCosts} value={sek(result.oneOffTotal)} />
           <Stat
-            label="Balans"
+            label={t.balance}
             value={sek(result.surplus)}
             tone={result.surplus < 0 ? 'negative' : 'positive'}
           />
         </div>
       </Card>
 
-      <Card title={`Att överföra · ${formatMonth(month)}`}>
+      <Card title={`${t.toTransfer} · ${formatMonth(month)}`}>
         {result.memberLines.length === 0 ? (
-          <Empty text="Inga aktiva medlemmar." />
+          <Empty text={t.noActiveMembers} />
         ) : (
           result.memberLines.map((line) => (
             <div className="transfer" key={line.memberId}>
               <div className="transfer-name">{line.name}</div>
               <div className="transfer-headline">
-                <span className="label">Till gemensamt konto</span>
+                <span className="label">{t.toJointAccount}</span>
                 <span className={`value ${line.toTransfer < 0 ? 'negative' : ''}`}>
                   {sek(line.toTransfer)}
                 </span>
               </div>
               <div className="transfer-line">
-                <span>Inkomst</span>
+                <span>{t.income}</span>
                 <span>{sek(line.income)}</span>
               </div>
               <div className="transfer-line">
-                <span>Betalar själv</span>
+                <span>{t.paysDirectly}</span>
                 <span>{line.paidDirectly > 0 ? `−${sek(line.paidDirectly)}` : '—'}</span>
               </div>
               <div className="transfer-line">
-                <span>Kvar till eget</span>
+                <span>{t.leftForYourself}</span>
                 <span>{sek(line.leftOver)}</span>
               </div>
             </div>
@@ -91,24 +92,23 @@ export function Overview() {
         )}
         <div style={{ marginTop: 12 }}>
           <Note>
-            Alla får lika mycket kvar. Kostnader du betalar själv dras från din överföring, inte
-            från fördelningen.
+            {t.transferNote}
           </Note>
         </div>
       </Card>
 
       <Card
-        title="Gemensamt konto framåt"
+        title={t.jointAccountAhead}
         action={
           points.length > 0 ? (
             <button className="btn btn-small btn-secondary" onClick={() => setShowTable((v) => !v)}>
-              {showTable ? 'Graf' : 'Tabell'}
+              {showTable ? t.chart : t.table}
             </button>
           ) : undefined
         }
       >
         {points.length === 0 ? (
-          <Empty text="Ange saldot på gemensamt konto under Inkomst för att se prognosen." />
+          <Empty text={t.forecastEmpty} />
         ) : showTable ? (
           <ForecastTable points={points} />
         ) : (

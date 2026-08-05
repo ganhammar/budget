@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/store';
 import { Note } from './components';
+import { useText } from '../i18n';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
@@ -50,6 +51,7 @@ function loadGsi(): Promise<void> {
 
 export function SignIn() {
   const { signIn, error } = useStore();
+  const t = useText();
   const buttonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,14 +85,13 @@ export function SignIn() {
   return (
     <div className="onboarding">
       <h1>Budget</h1>
-      <p className="lead">Logga in för att se hushållets budget.</p>
+      <p className="lead">{t.signInLead}</p>
 
       {CLIENT_ID ? (
         <div ref={buttonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} />
       ) : (
         <Note>
-          Google-inloggning är inte konfigurerad. <code>VITE_GOOGLE_CLIENT_ID</code> saknas i
-          bygget.
+          {t.signInMissingClient} <code>VITE_GOOGLE_CLIENT_ID</code> {t.signInMissingClientTail}
         </Note>
       )}
 

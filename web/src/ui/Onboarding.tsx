@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useStore } from '../store/store';
 import { Field, Note } from './components';
+import { useText } from '../i18n';
 
 export function Onboarding() {
   const { createHousehold, signOut, email, error } = useStore();
+  const t = useText();
   const [household, setHousehold] = useState('');
   const [name, setName] = useState('');
 
@@ -11,22 +13,21 @@ export function Onboarding() {
 
   return (
     <div className="onboarding">
-      <h1>Skapa hushåll</h1>
+      <h1>{t.createHousehold}</h1>
       <p className="lead">
-        Du blir administratör för hushållet och kan bjuda in fler efteråt. All budgetdata hör till
-        det här hushållet.
+        {t.onboardingLead}
       </p>
 
-      <Field label="Hushållets namn">
+      <Field label={t.householdName}>
         <input
           autoFocus
           value={household}
           onChange={(e) => setHousehold(e.target.value)}
-          placeholder="t.ex. Familjen Svensson"
+          placeholder={t.householdNamePlaceholder}
         />
       </Field>
-      <Field label="Ditt namn">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Förnamn" />
+      <Field label={t.yourName}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.firstNamePlaceholder} />
       </Field>
 
       {error && <p className="note error">{error}</p>}
@@ -37,20 +38,19 @@ export function Onboarding() {
           disabled={!valid}
           onClick={() => void createHousehold(household.trim(), name.trim())}
         >
-          Skapa hushåll
+          {t.createHousehold}
         </button>
       </div>
 
       <div style={{ marginTop: 24 }}>
         <Note>
-          Inloggad som <strong>{email}</strong>. Har någon redan skapat ert hushåll behöver de bjuda
-          in den här adressen i stället.{' '}
+          {t.signedInAs} <strong>{email}</strong>. {t.onboardingAlreadyExists}{' '}
           <button
             className="btn btn-small btn-secondary"
             style={{ marginTop: 8 }}
             onClick={() => void signOut()}
           >
-            Logga ut
+            {t.signOut}
           </button>
         </Note>
       </div>

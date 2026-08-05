@@ -9,14 +9,25 @@ import { Loans } from './ui/Loans';
 import { Income } from './ui/Income';
 import { Household } from './ui/Household';
 import { storedTheme, useTheme } from './settings';
+import { useText, type Text } from './i18n';
 
 const TABS = [
-  { key: 'overview', label: 'Översikt', View: Overview },
-  { key: 'costs', label: 'Kostnader', View: RecurringCosts },
-  { key: 'oneoff', label: 'Engång', View: OneOffCosts },
-  { key: 'loans', label: 'Lån', View: Loans },
-  { key: 'income', label: 'Inkomst', View: Income },
+  { key: 'overview', View: Overview },
+  { key: 'costs', View: RecurringCosts },
+  { key: 'oneoff', View: OneOffCosts },
+  { key: 'loans', View: Loans },
+  { key: 'income', View: Income },
 ] as const;
+
+function tabLabel(t: Text, key: (typeof TABS)[number]['key']): string {
+  return {
+    overview: t.navOverview,
+    costs: t.navCosts,
+    oneoff: t.navOneOff,
+    loans: t.navLoans,
+    income: t.navIncome,
+  }[key];
+}
 
 function useHash() {
   const [hash, setHash] = useState(() => location.hash.slice(1) || 'overview');
@@ -35,14 +46,15 @@ export default function App() {
   // Falls back to the local mirror rather than 'system' while the budget loads,
   // or an explicit choice would be overridden by the OS for the first moment.
   useTheme(me?.theme ?? storedTheme());
+  const t = useText();
 
-  if (loading) return <p className="empty">Hämtar budgeten…</p>;
+  if (loading) return <p className="empty">{t.loadingBudget}</p>;
   if (!signedIn) return <SignIn />;
   if (!budget) return <Onboarding />;
 
-  const tab = TABS.find((t) => t.key === hash);
+  const tab = TABS.find((entry) => entry.key === hash);
   const View = hash === 'household' ? Household : (tab?.View ?? Overview);
-  const title = hash === 'household' ? 'Hushåll' : (tab?.label ?? 'Översikt');
+  const title = hash === 'household' ? t.household : tab ? tabLabel(t, tab.key) : t.navOverview;
 
   return (
     <div className="app">
@@ -57,14 +69,14 @@ export default function App() {
       </main>
 
       <nav className="nav">
-        {TABS.map((t) => (
+        {TABS.map((tab2) => (
           <a
-            key={t.key}
-            href={`#${t.key}`}
-            className={hash === t.key ? 'active' : ''}
-            aria-current={hash === t.key ? 'page' : undefined}
+            key={tab2.key}
+            href={`#${tab2.key}`}
+            className={hash === tab2.key ? 'active' : ''}
+            aria-current={hash === tab2.key ? 'page' : undefined}
           >
-            {t.label}
+            {tabLabel(t, tab2.key)}
           </a>
         ))}
       </nav>
