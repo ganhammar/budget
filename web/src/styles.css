@@ -132,13 +132,13 @@ body {
   font-size: 14px;
   color: var(--muted);
   text-decoration: none;
-  padding-bottom: 2px;
 }
 
+/* Ink and weight carry the current tab; a rule under it would be a fourth kind of
+   horizontal line competing with the structural ones. */
 .nav a.active {
   color: var(--ink);
   font-weight: 600;
-  box-shadow: inset 0 -2px 0 var(--ink);
 }
 
 /* Icons are gone: the labels carry it, and glyph fonts read as decoration here. */
