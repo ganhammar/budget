@@ -3,6 +3,7 @@ import { useStore, useBudget, newId } from '../store/store';
 import type { Member, Role } from '../domain/types';
 import { sek } from '../domain/format';
 import { Card, Field, ListRow, Note, Sheet } from './components';
+import { api } from '../api/client';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -15,6 +16,22 @@ export function Household() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Member | null>(null);
+  const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  async function resendInvite(member: Member) {
+    setResend('sending');
+    try {
+      await api.resendInvite(member.id);
+      setResend('sent');
+    } catch {
+      setResend('error');
+    }
+  }
+
+  function openMember(member: Member) {
+    setResend('idle');
+    setSelected(member);
+  }
 
   function rename() {
     const cleaned = renaming?.trim();
@@ -114,7 +131,7 @@ export function Household() {
               subtitle={member.email + (member.id === me.id ? ' · du' : '')}
               amount={member.status === 'active' ? sek(member.baselineIncome) : '—'}
               amountNote={member.status === 'active' ? 'normal/mån' : 'ej ansluten'}
-              onClick={isAdmin ? () => setSelected(member) : undefined}
+              onClick={isAdmin ? () => openMember(member) : undefined}
             />
           ))}
         </div>
@@ -212,6 +229,28 @@ export function Household() {
           {selected.role === 'admin' && adminCount === 1 && (
             <Note>Hushållet måste ha minst en administratör.</Note>
           )}
+
+          <div className="field">
+            <label>Inbjudan</label>
+            <button
+              className="btn btn-secondary"
+              style={{ alignSelf: 'flex-start' }}
+              disabled={resend === 'sending'}
+              onClick={() => void resendInvite(selected)}
+            >
+              {resend === 'sending' ? 'Skickar…' : 'Skicka inbjudan igen'}
+            </button>
+            {resend === 'sent' && <span className="hint">Skickad till {selected.email}.</span>}
+            {resend === 'error' && (
+              <span className="hint" style={{ color: 'var(--neg)' }}>
+                Inbjudan kunde inte skickas.
+              </span>
+            )}
+            {resend === 'idle' && (
+              <span className="hint">Mejlar en länk till appen. Adressen kopplas till hushållet.</span>
+            )}
+          </div>
+
           <div className="btn-row">
             <button
               className="btn btn-danger"

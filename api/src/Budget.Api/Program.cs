@@ -210,6 +210,49 @@ api.MapPut("/members/{id}", async (
     return Results.NoContent();
 });
 
+// Sending is the whole point here, so unlike the write above a failure is reported
+// rather than logged: the caller asked for a mail and needs to know it did not go.
+api.MapPost("/members/{id}/invite", async (
+    string id, HttpContext ctx, BudgetStore s, SessionTokens t,
+    EmailSender mail, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+    // ErrorResponse rather than Results.Problem: ProblemDetails is not in the
+    // source-generated context, so it compiles and then throws under AOT.
+    if (!emailEnabled)
+        return Results.Json(new ErrorResponse("E-post är avstängt i den här miljön."), statusCode: 503);
+
+    var member = await s.GetMemberAsync(caller.HouseholdId, id, ct);
+    if (member is null) return Results.NotFound(new ErrorResponse("Medlemmen finns inte."));
+
+    // An invite that leads nowhere is worse than none, so make sure the address is
+    // mapped to this household before pointing someone at the sign-in.
+    var existing = await s.GetProfileAsync(member.Email, ct);
+    if (existing is null)
+        await s.PutProfileAsync(new UserProfile(member.Email, caller.HouseholdId, id), ct);
+    else if (existing.HouseholdId != caller.HouseholdId)
+        return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
+
+    var meta = await s.GetMetaAsync(caller.HouseholdId, ct);
+    var invite = Messages.Invite(
+        meta?.Household.Name ?? "hushållet",
+        caller.Member?.Name ?? "Någon",
+        mail.AppUrl);
+
+    try
+    {
+        await mail.SendAsync(member.Email, invite.Subject, invite.Body, ct);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Could not send invite to {Email}", member.Email);
+        return Results.Json(new ErrorResponse("Inbjudan kunde inte skickas."), statusCode: 502);
+    }
+
+    return Results.NoContent();
+});
+
 api.MapDelete("/members/{id}", async (
     string id, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
 {

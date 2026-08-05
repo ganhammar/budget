@@ -79,6 +79,10 @@ export const api = {
   remove: (collection: string, id: string) =>
     request<void>(`/${collection}/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
+  /** Re-sends the invite mail. An action rather than a state change, so it bypasses the sync diff. */
+  resendInvite: (memberId: string) =>
+    request<void>(`/members/${encodeURIComponent(memberId)}/invite`, { method: 'POST' }),
+
   putIncome: (month: string, memberId: string, amount: number, enteredById?: string) =>
     request<void>(`/income/${month}/${encodeURIComponent(memberId)}`, {
       method: 'PUT',
