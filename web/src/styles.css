@@ -856,10 +856,12 @@ input:disabled {
   color: var(--ink-2);
 }
 
+/* The field and its button are one control. Stretching rather than aligning
+   keeps them the same height whatever the two fonts and paddings work out to. */
 .ask-input {
   display: flex;
   gap: 12px;
-  align-items: flex-end;
+  align-items: stretch;
   margin-bottom: 6px;
 }
 
