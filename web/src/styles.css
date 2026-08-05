@@ -145,9 +145,20 @@ body {
 
 /* ---------- Sections replace cards ---------- */
 
+/*
+ * A section boundary is the strongest horizontal mark on the page; row rules and
+ * table rules stay faint beneath it. The bottom padding is explicit and trailing
+ * margins are dropped, so the gap above the rule is the same whether the section
+ * ends in a list, a note or a field.
+ */
 .card {
-  padding: 22px 0 4px;
-  border-top: 1px solid var(--rule);
+  padding: 22px 0 18px;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.card > *:last-child,
+.card > *:last-child > *:last-child {
+  margin-bottom: 0;
 }
 
 .card:first-of-type {
@@ -417,19 +428,12 @@ body {
   position: relative;
 }
 
+/* Surface and padding come from the shared field rule below. */
 .dropdown-trigger {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  width: 100%;
-  font: inherit;
-  font-size: 16px;
-  color: var(--ink);
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--rule-strong);
-  padding: 7px 2px;
   text-align: left;
   cursor: pointer;
 }
@@ -466,25 +470,35 @@ body {
   accent-color: var(--ink);
 }
 
-input,
-select {
+/*
+ * Fields are surfaces, not lines. A hairline under an input reads as one more
+ * horizontal rule on a page already ruled into sections and rows, and it was the
+ * heaviest of them, so the mark that meant least drew the most. Filling the field
+ * instead leaves every remaining line structural.
+ */
+input:not([type='checkbox']),
+select,
+.dropdown-trigger {
   font: inherit;
   font-size: 16px; /* below 16px iOS zooms in on focus */
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  background: transparent;
+  background: var(--wash);
   border: 0;
-  border-bottom: 1px solid var(--rule-strong);
   border-radius: 0;
-  padding: 7px 2px;
+  padding: 9px 10px;
   width: 100%;
 }
 
-input:focus,
-select:focus {
+input:not([type='checkbox']):focus,
+select:focus,
+.dropdown-trigger:focus-visible {
   outline: 0;
-  border-bottom-color: var(--ink);
-  background: var(--wash);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+input:disabled {
+  color: var(--muted);
 }
 
 .field-pair {
