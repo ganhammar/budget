@@ -259,7 +259,17 @@ export function MultiSelect({
           onClick={() => setOpen((v) => !v)}
         >
           <span>{summary}</span>
-          <span aria-hidden="true">{open ? '\u25B4' : '\u25BE'}</span>
+          {/* Same mark as a native select's, so the two controls read as one family. */}
+          <svg className="chevron" viewBox="0 0 12 8" aria-hidden="true">
+            <path
+              d="M1 1.75 6 6.25 11 1.75"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </button>
 
         {open && (

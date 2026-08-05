@@ -486,11 +486,46 @@ select,
   font-size: 16px; /* below 16px iOS zooms in on focus */
   font-variant-numeric: tabular-nums;
   color: var(--ink);
-  background: var(--wash);
+  background-color: var(--wash);
   border: 0;
   border-radius: 0;
   padding: 9px 10px;
   width: 100%;
+}
+
+/*
+ * The browser draws a select's arrow hard against the inner edge and ignores
+ * padding-right in some engines, so selects draw their own. The inset matches the
+ * collapsed multi-select below, and both sit further in than the text does: an
+ * arrow aligned to the text margin reads as though it is falling off the field.
+ */
+select {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75' fill='none' stroke='%235d5a4e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 8px;
+}
+
+:root[data-theme='dark'] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.75 6 6.25 11 1.75' fill='none' stroke='%23a9a496' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.dropdown-trigger {
+  padding-right: 14px;
+  align-items: center;
+}
+
+.dropdown-trigger .chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 8px;
+  color: var(--ink-2);
+}
+
+.dropdown-trigger[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
 }
 
 input:not([type='checkbox']):focus,
