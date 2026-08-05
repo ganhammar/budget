@@ -155,18 +155,16 @@ export function activeMembers(budget: Budget): Member[] {
 }
 
 /**
- * Only a starting point for a household that has never set its own. Category names
- * are user data rather than interface text, so they are not translated.
- */
-export const DEFAULT_CATEGORIES = ['Hus', 'Barn', 'Mat', 'Media', 'Husdjur', 'Bil', 'Övrigt'];
-
-/**
  * The categories to offer. Whatever the household has chosen, plus any category its
  * costs already reference: a name in use must never drop out of the list, or editing
  * that cost would silently move it somewhere else.
+ *
+ * There is no seeded list. A new household starts with nothing and names its first
+ * category when it books its first cost, so the categories are always ones someone
+ * actually chose rather than a guess in one particular language.
  */
 export function categoriesFor(budget: Budget): string[] {
-  const chosen = budget.household.categories ?? DEFAULT_CATEGORIES;
+  const chosen = budget.household.categories ?? [];
   const inUse = budget.recurringCosts.map((c) => c.category);
   const seen = new Set<string>();
   const all: string[] = [];

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useBudget, newId } from '../store/store';
 import {
   categoriesFor,
-  DEFAULT_CATEGORIES,
   INTERVALS,
   WEEK_INTERVALS,
   type RecurringCost,
@@ -43,6 +42,8 @@ export function RecurringCosts() {
   const [newCategory, setNewCategory] = useState<string | null>(null);
 
   const categories = categoriesFor(budget);
+  // With no categories yet there is nothing to pick, so the field is just a box.
+  const creatingCategory = newCategory !== null || categories.length === 0;
 
   const thisMonth = currentMonth();
 
@@ -73,9 +74,9 @@ export function RecurringCosts() {
 
     update((b) => ({
       ...b,
-      household: known
-        ? b.household
-        : { ...b.household, categories: [...(b.household.categories ?? DEFAULT_CATEGORIES), category] },
+      // Writes the effective list, not just the stored one, so the first save on a
+      // household that never had categories records what it was already showing.
+      household: known ? b.household : { ...b.household, categories: [...categories, category] },
       recurringCosts: isNew
         ? [...b.recurringCosts, cost]
         : b.recurringCosts.map((c) => (c.id === cost.id ? cost : c)),
@@ -222,7 +223,7 @@ export function RecurringCosts() {
             />
           </Field>
           <Field label={t.category}>
-            {newCategory === null ? (
+            {!creatingCategory ? (
               <select
                 value={draft.category}
                 onChange={(e) =>
@@ -242,17 +243,19 @@ export function RecurringCosts() {
               <>
                 <input
                   autoFocus
-                  value={newCategory}
+                  value={newCategory ?? draft.category}
                   onChange={(e) => setNewCategory(e.target.value)}
                   placeholder={t.newCategoryPlaceholder}
                 />
-                <button
-                  className="btn btn-small btn-secondary"
-                  style={{ alignSelf: 'flex-start', marginTop: 8 }}
-                  onClick={() => setNewCategory(null)}
-                >
-                  {t.pickExistingCategory}
-                </button>
+                {categories.length > 0 && (
+                  <button
+                    className="btn btn-small btn-secondary"
+                    style={{ alignSelf: 'flex-start', marginTop: 8 }}
+                    onClick={() => setNewCategory(null)}
+                  >
+                    {t.pickExistingCategory}
+                  </button>
+                )}
               </>
             )}
           </Field>
