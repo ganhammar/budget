@@ -68,7 +68,7 @@ export function Loans() {
   const [hidden, setHidden] = useState<string[]>([]);
   const [showDebtTable, setShowDebtTable] = useState(false);
   const [splitLoans, setSplitLoans] = useState(false);
-  const [view, setView] = useState<'debt' | 'interest'>('debt');
+  const [view, setView] = useState<'debt' | 'interest' | 'rate'>('debt');
 
   const nowMonth = currentMonth();
   const debtFree = debtFreeMonth(budget);
@@ -100,7 +100,7 @@ export function Loans() {
     () =>
       debtPoints.map((p) => ({
         month: p.month,
-        values: view === 'debt' ? p.debts : p.interest,
+        values: view === 'debt' ? p.debts : view === 'interest' ? p.interest : p.rate,
       })),
     [debtPoints, view],
   );
@@ -246,12 +246,14 @@ export function Loans() {
           title={t.overTime}
           action={
             <span className="card-actions">
-              <button
-                className="btn btn-small btn-secondary"
-                onClick={() => setSplitLoans((v) => !v)}
-              >
-                {splitLoans ? t.combineLoans : t.splitLoans}
-              </button>
+              {view !== 'rate' && (
+                <button
+                  className="btn btn-small btn-secondary"
+                  onClick={() => setSplitLoans((v) => !v)}
+                >
+                  {splitLoans ? t.combineLoans : t.splitLoans}
+                </button>
+              )}
               <button
                 className="btn btn-small btn-secondary"
                 onClick={() => setShowDebtTable((v) => !v)}
@@ -262,9 +264,13 @@ export function Loans() {
           }
         >
           <Field label={t.showing}>
-            <select value={view} onChange={(e) => setView(e.target.value as 'debt' | 'interest')}>
+            <select
+              value={view}
+              onChange={(e) => setView(e.target.value as 'debt' | 'interest' | 'rate')}
+            >
               <option value="debt">{t.debt}</option>
               <option value="interest">{t.interestCost}</option>
+              <option value="rate">{t.interestRate}</option>
             </select>
           </Field>
 
@@ -293,20 +299,35 @@ export function Loans() {
           ) : debtPoints.length < 2 ? (
             <Empty text={t.rangeTooShort} />
           ) : showDebtTable ? (
-            <SeriesTable points={seriesPoints} loans={shown} />
+            <SeriesTable
+              points={seriesPoints}
+              loans={shown}
+              format={view === 'rate' ? (v) => percent(v) : sek}
+              summable={view !== 'rate'}
+            />
           ) : (
             <SeriesChart
               points={seriesPoints}
               loans={shown}
               colorIndex={colorIndex}
               split={splitLoans}
+              summable={view !== 'rate'}
+              formatValue={view === 'rate' ? (v) => percent(v) : sek}
               combinedLabel={t.total}
-              ariaLabel={view === 'debt' ? t.debtChartLabel : t.interestChartLabel}
+              ariaLabel={
+                view === 'debt'
+                  ? t.debtChartLabel
+                  : view === 'interest'
+                    ? t.interestChartLabel
+                    : t.rateChartLabel
+              }
               formatTick={
                 view === 'debt'
                   ? (v) =>
                       v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${Math.round(v / 1000)}k`
-                  : figure
+                  : view === 'interest'
+                    ? figure
+                    : (v) => percent(v, 1)
               }
               footer={
                 view === 'debt' ? (
@@ -324,7 +345,9 @@ export function Loans() {
                     <span className="hint">{t.pointForDebt}</span>
                   </>
                 ) : (
-                  <span className="hint">{t.pointForInterest}</span>
+                  <span className="hint">
+                    {view === 'interest' ? t.pointForInterest : t.pointForRate}
+                  </span>
                 )
               }
             />

@@ -40,6 +40,10 @@ interface ChartProps {
   combinedLabel: string;
   /** Axis ticks; the y scale differs by an order of magnitude between series. */
   formatTick: (value: number) => string;
+  /** Readings in the detail box. Money by default; rates are not money. */
+  formatValue?: (value: number) => string;
+  /** Summing makes no sense for every series: two rates do not add up. */
+  summable?: boolean;
   ariaLabel: string;
   /** Legend or hint shown under the chart when nothing is selected. */
   footer: ReactNode;
@@ -57,6 +61,8 @@ export function SeriesChart({
   split,
   combinedLabel,
   formatTick,
+  formatValue = sek,
+  summable = true,
   ariaLabel,
   footer,
 }: ChartProps) {
@@ -81,7 +87,7 @@ export function SeriesChart({
 
   // Split draws each loan against a shared scale, so a small loan is still a
   // visible trajectory rather than a sliver of a stack.
-  const lines = split
+  const lines = split || !summable
     ? loans.map((loan) => ({
         key: loan.id,
         label: loan.description,
@@ -97,7 +103,10 @@ export function SeriesChart({
         },
       ];
 
-  const max = Math.max(1, ...lines.flatMap((line) => line.values));
+  // No fixed floor: a rate series tops out around 0.05, and flooring at 1 would
+  // flatten it against the axis. Only an all-zero series needs an arbitrary scale.
+  const peak = Math.max(...lines.flatMap((line) => line.values));
+  const max = peak > 0 ? peak : 1;
 
   const x = (i: number) => MARGIN.left + (i * plotW) / (points.length - 1);
   const y = (v: number) => MARGIN.top + plotH - (v / max) * plotH;
@@ -219,13 +228,15 @@ export function SeriesChart({
           {loans.map((loan) => (
             <div className="tooltip-row" key={loan.id}>
               <span>{loan.description}</span>
-              <span>{sek(shown.values[loan.id] ?? 0)}</span>
+              <span>{formatValue(shown.values[loan.id] ?? 0)}</span>
             </div>
           ))}
-          <div className="tooltip-row total">
-            <span>{t.total}</span>
-            <strong>{sek(sumAt(shown))}</strong>
-          </div>
+          {summable && (
+            <div className="tooltip-row total">
+              <span>{t.total}</span>
+              <strong>{formatValue(sumAt(shown))}</strong>
+            </div>
+          )}
         </div>
 
         <div className="detail-layer" data-hidden={selected !== null} aria-hidden={selected !== null}>
@@ -236,7 +247,17 @@ export function SeriesChart({
   );
 }
 
-export function SeriesTable({ points, loans }: { points: SeriesPoint[]; loans: Loan[] }) {
+export function SeriesTable({
+  points,
+  loans,
+  format = sek,
+  summable = true,
+}: {
+  points: SeriesPoint[];
+  loans: Loan[];
+  format?: (value: number) => string;
+  summable?: boolean;
+}) {
   const t = useText();
   // One row per year keeps this readable over a payoff that runs for decades.
   const yearly = points.filter((p, i) => i === 0 || p.month.endsWith('-01'));
@@ -250,7 +271,7 @@ export function SeriesTable({ points, loans }: { points: SeriesPoint[]; loans: L
             {loans.map((l) => (
               <th key={l.id}>{l.description}</th>
             ))}
-            <th>{t.total}</th>
+            {summable && <th>{t.total}</th>}
           </tr>
         </thead>
         <tbody>
@@ -258,11 +279,13 @@ export function SeriesTable({ points, loans }: { points: SeriesPoint[]; loans: L
             <tr key={p.month}>
               <td>{formatMonthShort(p.month)}</td>
               {loans.map((l) => (
-                <td key={l.id}>{sek(p.values[l.id] ?? 0)}</td>
+                <td key={l.id}>{format(p.values[l.id] ?? 0)}</td>
               ))}
-              <td>
-                <strong>{sek(loans.reduce((s, l) => s + (p.values[l.id] ?? 0), 0))}</strong>
-              </td>
+              {summable && (
+                <td>
+                  <strong>{format(loans.reduce((s, l) => s + (p.values[l.id] ?? 0), 0))}</strong>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

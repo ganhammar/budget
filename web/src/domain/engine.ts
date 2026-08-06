@@ -310,6 +310,8 @@ export interface DebtPoint {
   /** Interest charged that month per loan id, at the rate in force then. */
   interest: Record<string, number>;
   interestTotal: number;
+  /** The nominal rate in force that month, as a fraction. */
+  rate: Record<string, number>;
 }
 
 /**
@@ -324,19 +326,22 @@ export function debtOverTime(budget: Budget, from: Month, months: number): DebtP
     const month = addMonths(from, i);
     const snapshot: Record<string, number> = {};
     const interest: Record<string, number> = {};
+    const rate: Record<string, number> = {};
     let total = 0;
     let interestTotal = 0;
     for (const loan of budget.loans) {
       const value = debts.get(loan.id) ?? 0;
       // Interest is what that debt costs at the rate in force that month, so the
       // series bends with both amortization and any recorded rate change.
-      const charged = monthlyInterest(loan, value, month);
+      const nominal = termsAt(loan, month).nominalRate;
+      const charged = (value * nominal) / 12;
       snapshot[loan.id] = value;
       interest[loan.id] = charged;
+      rate[loan.id] = nominal;
       total += value;
       interestTotal += charged;
     }
-    out.push({ month, debts: snapshot, total, interest, interestTotal });
+    out.push({ month, debts: snapshot, total, interest, interestTotal, rate });
     applyAmortization(budget, debts, month);
   }
 
