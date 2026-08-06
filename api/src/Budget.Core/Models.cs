@@ -30,6 +30,9 @@ public sealed record IncomeEntry(string MemberId, string Month, decimal Amount, 
 /// </summary>
 public sealed record ActivePeriod(string? From, string? To);
 
+/// <summary>Amount and payer from a month onwards; see the client's costTermsAt.</summary>
+public sealed record CostTerms(string From, decimal Amount, string? PayerId);
+
 public sealed record RecurringCost(
     string Id,
     string Category,
@@ -49,7 +52,8 @@ public sealed record RecurringCost(
     /// On and off stretches. Null means always live, which is what every cost
     /// created before pausing existed looks like.
     /// </summary>
-    List<ActivePeriod>? Periods = null);
+    List<ActivePeriod>? Periods = null,
+    List<CostTerms>? Terms = null);
 
 public sealed record OneOffCost(
     string Id,

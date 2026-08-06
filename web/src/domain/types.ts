@@ -61,10 +61,22 @@ export interface ActivePeriod {
  * how often. The budgeted monthly figure is amount / intervalMonths, while the
  * actual withdrawal happens in the months implied by `firstCharge`.
  */
+/**
+ * What a cost charges and who pays it, from a given month onwards. The loan
+ * equivalent is LoanTerms; both exist so that raising a price records a change
+ * rather than rewriting what last year cost.
+ */
+export interface CostTerms {
+  from: Month;
+  amount: number;
+  payerId?: string;
+}
+
 export interface RecurringCost {
   id: string;
   category: string;
   description: string;
+  /** In force before the first terms entry, and for costs that have none. */
   amount: number;
   /** Ignored when `intervalWeeks` is set. */
   intervalMonths: number;
@@ -86,6 +98,7 @@ export interface RecurringCost {
    * period; resuming opens a new one, so a gap stays a gap in past months.
    */
   periods?: ActivePeriod[];
+  terms?: CostTerms[];
 }
 
 /**

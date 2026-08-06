@@ -3,10 +3,12 @@ import { useBudget, newId } from '../store/store';
 import {
   categoriesFor,
   INTERVALS,
+  type CostTerms,
   WEEK_INTERVALS,
   type RecurringCost,
 } from '../domain/types';
 import {
+  costTermsAt,
   intervalLabel,
   isCostPaused,
   monthlyAmount,
@@ -49,6 +51,9 @@ export function RecurringCosts() {
   const [draft, setDraft] = useState<RecurringCost | null>(null);
   /** The cost whose action menu is open. */
   const [actionsFor, setActionsFor] = useState<RecurringCost | null>(null);
+  /** The cost whose charge is being changed, and the entry being written. */
+  const [termsFor, setTermsFor] = useState<RecurringCost | null>(null);
+  const [termsDraft, setTermsDraft] = useState<CostTerms | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
   // Non-null while the category field is a text box rather than the dropdown.
@@ -71,7 +76,7 @@ export function RecurringCosts() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'sv'));
   }, [live]);
 
-  const total = live.reduce((sum, c) => sum + monthlyAmount(c), 0);
+  const total = live.reduce((sum, c) => sum + monthlyAmount(c, thisMonth), 0);
   const memberName = (id?: string) => budget.members.find((m) => m.id === id)?.name;
 
   function save() {
@@ -95,6 +100,40 @@ export function RecurringCosts() {
         : b.recurringCosts.map((c) => (c.id === cost.id ? cost : c)),
     }));
     closeSheet();
+  }
+
+  /** Pre-filled with what is in force, so an unchanged field records the same value. */
+  function openTerms(cost: RecurringCost) {
+    const current = costTermsAt(cost, thisMonth);
+    setTermsFor(cost);
+    setTermsDraft({ from: thisMonth, amount: current.amount, payerId: current.payerId });
+    setActionsFor(null);
+  }
+
+  /** One entry per month: saving twice for the same month corrects it. */
+  function saveTerms() {
+    if (!termsFor || !termsDraft) return;
+    const terms = [
+      ...(termsFor.terms ?? []).filter((entry) => entry.from !== termsDraft.from),
+      termsDraft,
+    ].sort((a, b) => a.from.localeCompare(b.from));
+
+    update((b) => ({
+      ...b,
+      recurringCosts: b.recurringCosts.map((c) => (c.id === termsFor.id ? { ...c, terms } : c)),
+    }));
+    setTermsFor(null);
+    setTermsDraft(null);
+  }
+
+  function removeTerms(from: string) {
+    if (!termsFor) return;
+    const terms = (termsFor.terms ?? []).filter((entry) => entry.from !== from);
+    update((b) => ({
+      ...b,
+      recurringCosts: b.recurringCosts.map((c) => (c.id === termsFor.id ? { ...c, terms } : c)),
+    }));
+    setTermsFor({ ...termsFor, terms });
   }
 
   function closeSheet() {
@@ -155,7 +194,7 @@ export function RecurringCosts() {
         {groups.map(([category, costs]) => (
           <div key={category} style={{ marginBottom: 14 }}>
             <div className="group-label">
-              {category} · {sek(costs.reduce((sum, c) => sum + monthlyAmount(c), 0))}
+              {category} · {sek(costs.reduce((sum, c) => sum + monthlyAmount(c, thisMonth), 0))}
               {t.perMonth}
             </div>
             <div className="list">
@@ -171,7 +210,7 @@ export function RecurringCosts() {
                         ? `${sek(cost.amount)} · ${intervalLabel(cost, t)}${next ? ` · ${t.nextCharge(formatMonthShort(next))}` : ''}`
                         : t.everyMonth
                     }
-                    amount={sek(monthlyAmount(cost))}
+                    amount={sek(monthlyAmount(cost, thisMonth))}
                     amountNote={t.perMonth}
                     onClick={() => setActionsFor(cost)}
                   />
@@ -205,7 +244,7 @@ export function RecurringCosts() {
                       key={cost.id}
                       title={cost.description}
                       subtitle={`${cost.category}${since ? ` · ${t.pausedSince(formatMonth(since))}` : ''}`}
-                      amount={sek(monthlyAmount(cost))}
+                      amount={sek(monthlyAmount(cost, thisMonth))}
                       amountNote={t.perMonth}
                       onClick={() => setActionsFor(cost)}
                     />
@@ -265,12 +304,22 @@ export function RecurringCosts() {
             )}
           </Field>
           <div className="field-pair">
-            <Field label={t.amountPerCharge}>
-              <AmountInput
-                value={draft.amount || ''}
-                onChange={(v) => setDraft({ ...draft, amount: v })}
-              />
-            </Field>
+            {isNew ? (
+              <Field label={t.amountPerCharge}>
+                <AmountInput
+                  value={draft.amount || ''}
+                  onChange={(v) => setDraft({ ...draft, amount: v })}
+                />
+              </Field>
+            ) : (
+              <div className="field">
+                <label>{t.currentCharge}</label>
+                <div className="terms-current">
+                  <span>{sek(costTermsAt(draft, thisMonth).amount)}</span>
+                  <span>{memberName(costTermsAt(draft, thisMonth).payerId) ?? t.joint}</span>
+                </div>
+              </div>
+            )}
             <Field label={t.howOften}>
               <select
                 value={draft.intervalWeeks ? `w${draft.intervalWeeks}` : `m${draft.intervalMonths}`}
@@ -331,22 +380,23 @@ export function RecurringCosts() {
               />
             </Field>
           )}
-          <Field
-            label={t.paidBy}
-            hint={t.paidByHint}
-          >
-            <PayerSelect
-              members={budget.members}
-              value={draft.payerId}
-              onChange={(payerId) => setDraft({ ...draft, payerId })}
-            />
-          </Field>
+          {isNew ? (
+            <Field label={t.paidBy} hint={t.paidByHint}>
+              <PayerSelect
+                members={budget.members}
+                value={draft.payerId}
+                onChange={(payerId) => setDraft({ ...draft, payerId })}
+              />
+            </Field>
+          ) : (
+            <span className="hint">{t.changeChargeHint}</span>
+          )}
 
           {draft.amount > 0 && (draft.intervalWeeks || draft.intervalMonths > 1) && (
             <Note>
               {t.budgetedPrefix(sek(draft.amount), intervalLabel(draft, t))}{' '}
               <strong>
-                {sek(monthlyAmount(draft))}
+                {sek(monthlyAmount(draft, thisMonth))}
                 {t.perMonth}
               </strong>
               {t.budgetedSuffix} {t.chargesOccurIn}{' '}
@@ -382,6 +432,7 @@ export function RecurringCosts() {
                 setActionsFor(null);
               },
             },
+            { label: t.changeCharge, onSelect: () => openTerms(actionsFor) },
             isCostPaused(actionsFor, thisMonth)
               ? { label: t.resume, onSelect: () => resume(actionsFor) }
               : { label: t.pause, onSelect: () => pause(actionsFor) },
@@ -394,6 +445,59 @@ export function RecurringCosts() {
             },
           ]}
         />
+      )}
+
+      {termsFor && termsDraft && (
+        <Sheet title={t.changeCharge} onClose={() => setTermsFor(null)}>
+          <Field label={t.appliesFrom} hint={t.appliesFromHintCost}>
+            <MonthInput
+              value={termsDraft.from}
+              onChange={(from) => setTermsDraft({ ...termsDraft, from })}
+            />
+          </Field>
+          <Field label={t.amountPerCharge}>
+            <AmountInput
+              value={termsDraft.amount || ''}
+              onChange={(amount) => setTermsDraft({ ...termsDraft, amount })}
+            />
+          </Field>
+          <Field label={t.paidBy}>
+            <PayerSelect
+              members={budget.members}
+              value={termsDraft.payerId}
+              onChange={(payerId) => setTermsDraft({ ...termsDraft, payerId })}
+            />
+          </Field>
+
+          {(termsFor.terms ?? []).length > 0 && (
+            <div className="field">
+              <label>{t.termsHistory}</label>
+              <div className="list">
+                {[...(termsFor.terms ?? [])]
+                  .sort((a, b) => b.from.localeCompare(a.from))
+                  .map((entry) => (
+                    <ListRow
+                      key={entry.from}
+                      title={formatMonth(entry.from)}
+                      subtitle={memberName(entry.payerId) ?? t.joint}
+                      amount={sek(entry.amount)}
+                      onClick={() => removeTerms(entry.from)}
+                    />
+                  ))}
+              </div>
+              <span className="hint">{t.termsHistoryHint}</span>
+            </div>
+          )}
+
+          <div className="btn-row">
+            <button className="btn btn-secondary" onClick={() => setTermsFor(null)}>
+              {t.cancel}
+            </button>
+            <button className="btn" onClick={saveTerms}>
+              {t.save}
+            </button>
+          </div>
+        </Sheet>
       )}
     </>
   );

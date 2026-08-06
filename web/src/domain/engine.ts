@@ -42,14 +42,27 @@ export function pausedFrom(cost: RecurringCost): Month | null {
   return closed.map((p) => p.to!).sort().at(-1) ?? null;
 }
 
+/**
+ * The amount and payer in force for a month: the latest terms starting at or
+ * before it, else the cost's own fields.
+ */
+export function costTermsAt(cost: RecurringCost, month: Month): { amount: number; payerId?: string } {
+  const applicable = (cost.terms ?? [])
+    .filter((entry) => entry.from <= month)
+    .sort((a, b) => a.from.localeCompare(b.from));
+  const current = applicable[applicable.length - 1];
+  return current ?? { amount: cost.amount, payerId: cost.payerId };
+}
+
 /** Smoothed monthly cost. This is what drives the split between members. */
-export function monthlyAmount(cost: RecurringCost): number {
+export function monthlyAmount(cost: RecurringCost, month: Month): number {
+  const { amount } = costTermsAt(cost, month);
   if (cost.intervalWeeks && cost.intervalWeeks > 0) {
     // Charges per year, spread over twelve. Eight weeks is 6.52 charges, not six.
     const perYear = DAYS_PER_YEAR / (7 * cost.intervalWeeks);
-    return (cost.amount * perYear) / 12;
+    return (amount * perYear) / 12;
   }
-  return cost.amount / Math.max(1, cost.intervalMonths);
+  return amount / Math.max(1, cost.intervalMonths);
 }
 
 /**
@@ -365,7 +378,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   }
 
   const liveCosts = budget.recurringCosts.filter((c) => isCostLiveIn(c, month));
-  const recurringTotal = liveCosts.reduce((sum, c) => sum + monthlyAmount(c), 0);
+  const recurringTotal = liveCosts.reduce((sum, c) => sum + monthlyAmount(c, month), 0);
   const activeOneOffs = budget.oneOffCosts.filter((c) => isActiveIn(c, month));
   const oneOffTotal = activeOneOffs.reduce((sum, c) => sum + monthlyShare(c), 0);
   const loanTotal = loanLines.reduce((sum, l) => sum + l.total, 0);
@@ -380,8 +393,8 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
     const income = incomeFor(budget, member.id, month);
     const paidDirectly =
       liveCosts
-        .filter((c) => c.payerId === member.id)
-        .reduce((sum, c) => sum + monthlyAmount(c), 0) +
+        .filter((c) => costTermsAt(c, month).payerId === member.id)
+        .reduce((sum, c) => sum + monthlyAmount(c, month), 0) +
       activeOneOffs.filter((c) => c.payerId === member.id).reduce((s, c) => s + monthlyShare(c), 0) +
       loanLines.filter((l) => l.payerId === member.id).reduce((s, l) => s + l.total, 0);
     const toTransfer = income - paidDirectly - surplusPerMember;
@@ -398,12 +411,13 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   // Actual cash flow on the joint account: lumpy, not smoothed.
   const outflowItems: { label: string; amount: number; oneOff?: boolean }[] = [];
   for (const cost of liveCosts) {
-    if (cost.payerId) continue;
+    const terms = costTermsAt(cost, month);
+    if (terms.payerId) continue;
     const times = chargesIn(cost, month);
     if (times === 0) continue;
     outflowItems.push({
       label: times > 1 ? `${cost.description} (${times}×)` : cost.description,
-      amount: cost.amount * times,
+      amount: terms.amount * times,
     });
   }
   for (const cost of budget.oneOffCosts) {

@@ -239,6 +239,11 @@ const sv = {
   originalDebt: 'Ursprunglig skuld',
   nominalRate: 'Nominell ränta (%)',
   confirmRemove: (name: string) => `Ta bort ${name}?`,
+  currentCharge: 'Belopp och betalare nu',
+  changeCharge: 'Ändra belopp eller betalare',
+  changeChargeHint:
+    'Belopp och betalare ändras från kostnadens meny, så att tidigare månader behåller det som gällde då.',
+  appliesFromHintCost: 'Första månaden med det nya beloppet.',
   currentTerms: 'Ränta och betalare nu',
   changeTerms: 'Ändra ränta eller betalare',
   changeTermsHint:
@@ -527,6 +532,11 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   originalDebt: 'Original debt',
   nominalRate: 'Nominal rate (%)',
   confirmRemove: (name: string) => `Remove ${name}?`,
+  currentCharge: 'Amount and payer now',
+  changeCharge: 'Change amount or payer',
+  changeChargeHint:
+    "Amount and payer are changed from the cost's menu, so earlier months keep what was in force then.",
+  appliesFromHintCost: 'The first month on the new amount.',
   currentTerms: 'Rate and payer now',
   changeTerms: 'Change rate or payer',
   changeTermsHint:

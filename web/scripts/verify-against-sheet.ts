@@ -192,6 +192,26 @@ for (const month of ['2026-08', '2026-09'] as const) {
   );
 }
 
+console.log('\n— A charge change applies forward only —');
+
+const chargeChanged: Budget = {
+  ...sheetBudget,
+  recurringCosts: sheetBudget.recurringCosts.map((cost, i) =>
+    i === 0 ? { ...cost, terms: [{ from: '2026-09', amount: cost.amount * 2 }] } : cost,
+  ),
+};
+
+for (const month of ['2026-08', '2026-09'] as const) {
+  const before = calculateMonth(sheetBudget, month).recurringTotal;
+  const after = calculateMonth(chargeChanged, month).recurringTotal;
+  const shouldMove = month >= '2026-09';
+  expect(
+    `${month}: shared costs ${shouldMove ? 'follow the new amount' : 'are untouched by a later change'}`,
+    Math.abs(after - before) > 0.01,
+    shouldMove,
+  );
+}
+
 /* ---------- Monthly income prompt ---------- */
 
 function expect(label: string, actual: boolean, want: boolean) {
