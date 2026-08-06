@@ -90,7 +90,9 @@ public sealed record Loan(
     string Fixation,
     string? ResetDate,
     string? PayerId,
-    List<LoanTerms>? Terms = null);
+    List<LoanTerms>? Terms = null,
+    /// <summary>Month the loan was taken out; null means it predates the records.</summary>
+    string? Started = null);
 
 public sealed record AmortizationStream(
     string Id,

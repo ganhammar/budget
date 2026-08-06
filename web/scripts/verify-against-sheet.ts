@@ -238,6 +238,30 @@ expect('the split is untouched by savings',
     calculateMonth(sheetBudget, MONTH).surplusPerMember,
   true);
 
+console.log('\n— A loan does not exist before it was taken out —');
+
+const started: Budget = {
+  ...sheetBudget,
+  loans: sheetBudget.loans.map((loan, i) =>
+    i === 0 ? { ...loan, started: '2026-01' } : { ...loan, started: '2020-01' },
+  ),
+};
+
+for (const month of ['2025-06', '2026-06'] as const) {
+  const line = calculateMonth(started, month).loanLines[0];
+  const present = line.debt > 0.005;
+  expect(
+    `${month}: the loan ${present ? 'carries debt' : 'has none yet'}`,
+    present,
+    month >= '2026-01',
+  );
+  expect(
+    `${month}: interest ${present ? 'is charged' : 'is not charged'}`,
+    line.interest > 0.005,
+    month >= '2026-01',
+  );
+}
+
 /* ---------- Monthly income prompt ---------- */
 
 function expect(label: string, actual: boolean, want: boolean) {

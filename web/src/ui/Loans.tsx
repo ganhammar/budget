@@ -415,37 +415,39 @@ export function Loans() {
               </Field>
             )}
           </div>
-          {isNew ? (
-            <div className="field-pair">
-              <Field label={t.rateFixation}>
-                <select
-                  value={loanDraft.fixation}
-                  onChange={(e) =>
-                    setLoanDraft({ ...loanDraft, fixation: e.target.value as RateFixation })
-                  }
-                >
-                  {RATE_FIXATIONS.map((value) => (
-                    <option key={value} value={value}>
-                      {fixationLabel(t, value)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={t.resetDate}>
-                <MonthInput
-                  value={loanDraft.resetDate ?? ''}
-                  onChange={(v) => setLoanDraft({ ...loanDraft, resetDate: v || undefined })}
-                />
-              </Field>
-            </div>
-          ) : (
+          {/* Creating a loan needs its fixation too; editing shows it in the pair above. */}
+          {isNew && (
+            <Field label={t.rateFixation}>
+              <select
+                value={loanDraft.fixation}
+                onChange={(e) =>
+                  setLoanDraft({ ...loanDraft, fixation: e.target.value as RateFixation })
+                }
+              >
+                {RATE_FIXATIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {fixationLabel(t, value)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
+          {/* When the loan began and when its terms are renegotiated: both corrections. */}
+          <div className="field-pair">
+            <Field label={t.loanStarted} hint={t.loanStartedHint}>
+              <MonthInput
+                value={loanDraft.started ?? ''}
+                onChange={(v) => setLoanDraft({ ...loanDraft, started: v || undefined })}
+              />
+            </Field>
             <Field label={t.resetDate}>
               <MonthInput
                 value={loanDraft.resetDate ?? ''}
                 onChange={(v) => setLoanDraft({ ...loanDraft, resetDate: v || undefined })}
               />
             </Field>
-          )}
+          </div>
 
           {isNew ? (
             <Field label={t.paidBy}>

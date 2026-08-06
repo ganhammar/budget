@@ -154,6 +154,12 @@ export interface Loan {
   id: string;
   description: string;
   originalDebt: number;
+  /**
+   * The month the loan was taken out. Absent means it predates anything the app
+   * can show, which is how every loan recorded before this field behaves. Looking
+   * back past this month shows no debt and no interest, because there was none.
+   */
+  started?: Month;
   /** In force before the first terms entry, and for loans that have none. */
   nominalRate: number;
   fixation: RateFixation;

@@ -234,12 +234,23 @@ function applyAmortization(
 /** Debt per loan at the start of the given month. */
 export function debtAtStartOf(budget: Budget, month: Month): Map<string, number> {
   const debts = new Map<string, number>();
-  for (const loan of budget.loans) debts.set(loan.id, loan.originalDebt);
-  if (budget.amortizationStreams.length === 0) return debts;
+  // A loan with no start month has always been here; one with a start month does
+  // not exist until it is reached, so looking further back shows nothing.
+  for (const loan of budget.loans) debts.set(loan.id, loan.started ? 0 : loan.originalDebt);
 
-  const first = Math.min(...budget.amortizationStreams.map((s) => toIndex(s.start)));
-  for (let i = first; i < toIndex(month); i++) {
-    applyAmortization(budget, debts, fromIndex(i));
+  const starts = [
+    ...budget.amortizationStreams.map((s) => toIndex(s.start)),
+    ...budget.loans.filter((l) => l.started).map((l) => toIndex(l.started!)),
+  ];
+  if (starts.length === 0) return debts;
+
+  const target = toIndex(month);
+  for (let i = Math.min(...starts); i <= target; i++) {
+    const at = fromIndex(i);
+    for (const loan of budget.loans) {
+      if (loan.started === at) debts.set(loan.id, loan.originalDebt);
+    }
+    if (i < target) applyAmortization(budget, debts, at);
   }
   return debts;
 }
@@ -249,11 +260,18 @@ export function debtFreeMonth(budget: Budget): Month | null {
   if (budget.loans.length === 0 || budget.amortizationStreams.length === 0) return null;
 
   const debts = new Map<string, number>();
-  for (const loan of budget.loans) debts.set(loan.id, loan.originalDebt);
+  for (const loan of budget.loans) debts.set(loan.id, loan.started ? 0 : loan.originalDebt);
 
-  let i = Math.min(...budget.amortizationStreams.map((s) => toIndex(s.start)));
+  let i = Math.min(
+    ...budget.amortizationStreams.map((s) => toIndex(s.start)),
+    ...budget.loans.filter((l) => l.started).map((l) => toIndex(l.started!)),
+  );
   const limit = i + 1200;
   while (i < limit) {
+    // A loan joins the walk in the month it was taken out.
+    for (const loan of budget.loans) {
+      if (loan.started === fromIndex(i)) debts.set(loan.id, loan.originalDebt);
+    }
     const left = [...debts.values()].reduce((sum, d) => sum + d, 0);
     if (left <= EPSILON) return fromIndex(i);
     if (applyAmortization(budget, debts, fromIndex(i)).size === 0) return null;

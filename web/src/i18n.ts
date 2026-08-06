@@ -277,6 +277,8 @@ const sv = {
   termsHistory: 'Tidigare ändringar',
   termsHistoryHint: 'Tryck på en rad för att ta bort den.',
   rateFixation: 'Räntebindning',
+  loanStarted: 'Lånet togs',
+  loanStartedHint: 'Månaden lånet betalades ut. Tidigare månader visar ingen skuld.',
   resetDate: 'Villkorsändringsdag',
   effectiveNote: (nominal: string, effective: string) =>
     `${nominal} nominellt motsvarar ${effective} effektivt med månadsvis kapitalisering. Budgeten räknar räntan på den nominella satsen.`,
@@ -594,6 +596,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   termsHistory: 'Previous changes',
   termsHistoryHint: 'Tap a row to remove it.',
   rateFixation: 'Rate fixation',
+  loanStarted: 'Taken out',
+  loanStartedHint: 'The month the loan was paid out. Earlier months show no debt.',
   resetDate: 'Reset date',
   effectiveNote: (nominal: string, effective: string) =>
     `${nominal} nominal is ${effective} effective with monthly compounding. The budget charges interest at the nominal rate.`,
