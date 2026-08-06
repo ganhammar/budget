@@ -38,7 +38,7 @@ public static class Messages
         IsEnglish(language)
             ? ($"You have been invited to {householdName}",
                 $"""
-                {invitedBy} has added you to the household {householdName} in Budget.
+                {invitedBy} has added you to the household {householdName} in pnkt.
 
                 Sign in with Google using the same address this email was sent to and you go straight into the household.
 
@@ -46,7 +46,7 @@ public static class Messages
                 """)
             : ($"Du är inbjuden till {householdName}",
                 $"""
-                {invitedBy} har lagt till dig i hushållet {householdName} i Budget.
+                {invitedBy} har lagt till dig i hushållet {householdName} i pnkt.
 
                 Logga in med Google på samma adress som det här mejlet skickades till, så kommer du direkt in i hushållet.
 
@@ -55,8 +55,8 @@ public static class Messages
 
     public static PushMessage PushTest(string? language) =>
         IsEnglish(language)
-            ? new PushMessage("Budget", "Notifications are working.", "/")
-            : new PushMessage("Budget", "Notiser fungerar.", "/");
+            ? new PushMessage("pnkt", "Notifications are working.", "/")
+            : new PushMessage("pnkt", "Notiser fungerar.", "/");
 
     /// <summary>The same nudge as the mail, cut to what fits on a lock screen.</summary>
     public static PushMessage IncomePush(string month, bool isFinal, string? language)
@@ -64,11 +64,11 @@ public static class Messages
         var when = FormatMonth(month, language);
         return IsEnglish(language)
             ? new PushMessage(
-                isFinal ? "Final reminder" : "Budget",
+                isFinal ? "Final reminder" : "pnkt",
                 $"Enter your income for {when}.",
                 "/#income")
             : new PushMessage(
-                isFinal ? "Sista påminnelsen" : "Budget",
+                isFinal ? "Sista påminnelsen" : "pnkt",
                 $"Fyll i din inkomst för {when}.",
                 "/#income");
     }

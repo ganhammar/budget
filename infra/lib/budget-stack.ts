@@ -18,6 +18,9 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as scheduler from 'aws-cdk-lib/aws-scheduler';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as ses from 'aws-cdk-lib/aws-ses';
 import { Construct } from 'constructs';
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -45,9 +48,18 @@ const CERTIFICATE_ARN =
   process.env.CERTIFICATE_ARN ??
   'arn:aws:acm:us-east-1:519157272275:certificate/aada0efe-f233-42da-8326-54c5135b7527';
 
+export interface BudgetStackProps extends StackProps {
+  /** Apex domain the app is moving to; a public hosted zone in this account. */
+  appDomain: string;
+  /** Covers the apex and www, from the us-east-1 certificate stack. */
+  appCertificateArn: string;
+}
+
 export class BudgetStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: BudgetStackProps) {
     super(scope, id, props);
+
+    const { appDomain, appCertificateArn } = props;
 
     /* ---------- Data ---------- */
 
@@ -218,6 +230,49 @@ export class BudgetStack extends Stack {
       // turn genuine API 403s and 404s into a 200 page of HTML.
     });
 
+    /* ---------- pnkt.app ---------- */
+
+    // A second distribution rather than new aliases on the first: a distribution
+    // carries one certificate, and the old domain's DNS lives in Cloudflare so its
+    // certificate cannot be reissued from here. Both serve the app while the move
+    // is in progress; the old one is retired once sign-in works on the new domain.
+    const zone = route53.HostedZone.fromLookup(this, 'AppZone', { domainName: appDomain });
+
+    const appDistribution = new cloudfront.Distribution(this, 'AppDistribution', {
+      domainNames: [appDomain, `www.${appDomain}`],
+      certificate: acm.Certificate.fromCertificateArn(this, 'AppCertificate', appCertificateArn),
+      defaultRootObject: 'index.html',
+      defaultBehavior: {
+        origin: origins.S3BucketOrigin.withOriginAccessControl(site),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+      },
+      additionalBehaviors: {
+        'api/*': {
+          origin: new origins.HttpOrigin(apiDomain),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+      },
+    });
+
+    for (const [name, recordName] of [['Apex', appDomain], ['Www', `www.${appDomain}`]] as const) {
+      const target = route53.RecordTarget.fromAlias(
+        new targets.CloudFrontTarget(appDistribution),
+      );
+      new route53.ARecord(this, `AppAlias${name}`, { zone, recordName, target });
+      new route53.AaaaRecord(this, `AppAliasAaaa${name}`, { zone, recordName, target });
+    }
+
+    // The zone is in the account, so the DKIM records are written by this deploy
+    // rather than pasted in by hand. Verification follows a few minutes later,
+    // which is why FROM_ADDRESS is not moved in the same deploy that creates this.
+    new ses.EmailIdentity(this, 'AppMailIdentity', {
+      identity: ses.Identity.publicHostedZone(zone),
+    });
+
     new s3deploy.BucketDeployment(this, 'DeploySite', {
       sources: [s3deploy.Source.asset(path.join(ROOT, 'web', 'dist'))],
       destinationBucket: site,
@@ -226,6 +281,7 @@ export class BudgetStack extends Stack {
     });
 
     new CfnOutput(this, 'SiteUrl', { value: `https://${distribution.distributionDomainName}` });
+    new CfnOutput(this, 'AppUrl', { value: `https://${appDomain}` });
     new CfnOutput(this, 'TableName', { value: table.tableName });
     new CfnOutput(this, 'ApiFunctionName', { value: api.functionName });
     new CfnOutput(this, 'RemindersFunctionName', { value: reminders.functionName });

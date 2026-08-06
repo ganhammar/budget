@@ -111,7 +111,9 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Deploy
-        run: npm ci && npx cdk deploy Budget --require-approval never
+        # Both stacks: the certificate lives in us-east-1 because CloudFront will
+        # not read one from anywhere else.
+        run: npm ci && npx cdk deploy --all --require-approval never
         working-directory: infra
         env:
           CDK_DEFAULT_REGION: ${{ vars.AWS_REGION }}

@@ -46,6 +46,10 @@ const sv = {
 
   // Sign in
   signInLead: 'Logga in för att se hushållets budget.',
+  signIn: 'Logga in',
+  // The name is punkt without its vowel, and "punkt slut" is what you say when a
+  // thing is decided. The line earns the name rather than explaining the app.
+  tagline: 'Räkna ut det. Punkt slut.',
   signInMissingClient: 'Google-inloggning är inte konfigurerad.',
   signInMissingClientTail: 'saknas i miljön.',
 
@@ -406,6 +410,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   errorCreateHousehold: 'The household could not be created.',
 
   signInLead: 'Sign in to see the household budget.',
+  signIn: 'Sign in',
+  tagline: 'Settle it once and for all.',
   signInMissingClient: 'Google sign-in is not configured.',
   signInMissingClientTail: 'is missing from the environment.',
 

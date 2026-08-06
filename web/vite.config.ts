@@ -16,8 +16,8 @@ export default defineConfig({
       // from a hand-written file it imports.
       workbox: { importScripts: ['/push-sw.js'] },
       manifest: {
-        name: 'Budget',
-        short_name: 'Budget',
+        name: 'pnkt',
+        short_name: 'pnkt',
         description: 'Hushållsbudget med fördelning, lån och kontoprognos',
         lang: 'sv-SE',
         display: 'standalone',

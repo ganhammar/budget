@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
   // A push with no readable payload still has to show something: the browsers
   // that require userVisibleOnly will otherwise post their own "site updated in
   // the background" notice.
-  let message = { title: 'Budget', body: '', url: '/' };
+  let message = { title: 'pnkt', body: '', url: '/' };
   try {
     if (event.data) message = { ...message, ...event.data.json() };
   } catch {
@@ -24,7 +24,7 @@ self.addEventListener('push', (event) => {
       badge: '/icon.svg',
       // Replaces rather than stacks: a second reminder for the same month should
       // not leave two entries on the lock screen.
-      tag: 'budget',
+      tag: 'pnkt',
       renotify: true,
       data: { url: message.url },
     }),

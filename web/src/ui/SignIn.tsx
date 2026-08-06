@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/store';
 import { Note } from './components';
 import { useText } from '../i18n';
@@ -49,13 +49,22 @@ function loadGsi(): Promise<void> {
   });
 }
 
+/**
+ * The public face of the app, so it says almost nothing: a wordmark, one line,
+ * and a way in. Nobody arrives here by accident, and a household's finances are
+ * not something to advertise, so there is nothing to explain to a stranger.
+ *
+ * Google's script is only fetched once someone asks to sign in, so a visitor who
+ * never clicks is never handed to a third party.
+ */
 export function SignIn() {
   const { signIn, error } = useStore();
   const t = useText();
   const buttonRef = useRef<HTMLDivElement>(null);
+  const [opening, setOpening] = useState(false);
 
   useEffect(() => {
-    if (!CLIENT_ID) return;
+    if (!opening || !CLIENT_ID) return;
     let cancelled = false;
 
     loadGsi()
@@ -80,26 +89,28 @@ export function SignIn() {
     return () => {
       cancelled = true;
     };
-  }, [signIn]);
+  }, [opening, signIn]);
 
   return (
-    <div className="onboarding">
-      <h1>Budget</h1>
-      <p className="lead">{t.signInLead}</p>
+    <div className="landing">
+      <div className="landing-mark">
+        pnkt<span className="landing-dot">.</span>
+      </div>
+      <p className="landing-line">{t.tagline}</p>
 
-      {CLIENT_ID ? (
-        <div ref={buttonRef} style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} />
-      ) : (
+      {!CLIENT_ID ? (
         <Note>
           {t.signInMissingClient} <code>VITE_GOOGLE_CLIENT_ID</code> {t.signInMissingClientTail}
         </Note>
+      ) : opening ? (
+        <div ref={buttonRef} className="landing-button" />
+      ) : (
+        <button className="landing-link" onClick={() => setOpening(true)}>
+          {t.signIn}
+        </button>
       )}
 
-      {error && (
-        <div style={{ marginTop: 16 }}>
-          <p className="note error">{error}</p>
-        </div>
-      )}
+      {error && <p className="note error landing-error">{error}</p>}
     </div>
   );
 }

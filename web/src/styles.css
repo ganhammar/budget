@@ -1125,6 +1125,74 @@ input:disabled {
   font-style: normal;
 }
 
+/* ---------- Landing ---------- */
+
+/*
+ * The whole page is one centred column with nothing else on it. No chrome, no
+ * navigation: there is nowhere else to go until you are signed in.
+ */
+.landing {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.landing-mark {
+  font-family: var(--serif);
+  font-size: 64px;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+/* The mark is the word it is named after, so the full stop is part of it, and
+   the one spot of colour on the page. */
+.landing-dot {
+  color: var(--neg);
+}
+
+.landing-line {
+  font-family: var(--serif);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--ink-2);
+  margin: 0;
+}
+
+.landing-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 6px 2px;
+  margin-top: 6px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink-2);
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.landing-link:hover {
+  color: var(--ink);
+}
+
+.landing-button {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  margin-top: 6px;
+}
+
+.landing-error {
+  margin-top: 8px;
+}
+
 /* ---------- Onboarding & sign-in ---------- */
 
 .onboarding {
