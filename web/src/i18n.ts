@@ -144,6 +144,21 @@ const sv = {
   total: 'Totalt',
   historyNote:
     'Grå siffror med ~ är uppskattningar som räknats fram från normal inkomst, inte bekräftade belopp. Tryck på en månad för att fylla i eller ändra.',
+  savings: 'Sparande',
+  savingsNote:
+    'Ditt eget långsiktiga sparande. Bara du ser det; övriga i hushållet ser bara vad du har kvar.',
+  noSavings: 'Inget sparande inlagt än.',
+  newSaving: 'Nytt sparande',
+  editSaving: 'Ändra sparande',
+  savingPlaceholder: 't.ex. Pension',
+  amountPerMonthLabel: 'Belopp per månad',
+  changeSaving: 'Ändra belopp',
+  currentSaving: 'Belopp nu',
+  changeSavingHint:
+    'Beloppet ändras från sparandets meny, så att tidigare månader behåller det som gällde då.',
+  appliesFromHintSaving: 'Första månaden med det nya beloppet.',
+  leftAfterSavings: 'Kvar efter sparande',
+  pausedSavings: 'Pausat sparande',
   jointAccount: 'Gemensamt konto',
   balanceNote: 'Ange saldot som det faktiskt ser ut i dag. Prognosen räknar framåt därifrån.',
   balanceField: 'Saldo',
@@ -452,6 +467,21 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   total: 'Total',
   historyNote:
     'Grey figures with ~ are estimates derived from normal income, not confirmed amounts. Tap a month to fill in or change it.',
+  savings: 'Savings',
+  savingsNote:
+    'Your own long-term saving. Only you can see it; the rest of the household only sees what you have left.',
+  noSavings: 'No savings added yet.',
+  newSaving: 'New saving',
+  editSaving: 'Edit saving',
+  savingPlaceholder: 'e.g. Pension',
+  amountPerMonthLabel: 'Amount per month',
+  changeSaving: 'Change amount',
+  currentSaving: 'Amount now',
+  changeSavingHint:
+    "The amount is changed from the saving's menu, so earlier months keep what was in force then.",
+  appliesFromHintSaving: 'The first month on the new amount.',
+  leftAfterSavings: 'Left after savings',
+  pausedSavings: 'Paused savings',
   jointAccount: 'Joint account',
   balanceNote: 'Enter the balance as it stands today. The forecast counts forward from there.',
   balanceField: 'Balance',

@@ -6,7 +6,7 @@
  * it applies ROUNDUP to each loan's interest, inflating the total by 3.72 kr/month.
  */
 import type { Budget, RecurringCost } from '../src/domain/types';
-import { calculateMonth, effectiveRate, forecast } from '../src/domain/engine';
+import { calculateMonth, effectiveRate, forecast, savingsTotal } from '../src/domain/engine';
 import {
   canEditIncomeFor,
   incomeHistory,
@@ -91,6 +91,7 @@ function buildBudget(rate: number): Budget {
     ],
     income: [],
     accountBalance: { month: MONTH, amount: 25000 },
+    savings: [],
   };
 }
 
@@ -211,6 +212,31 @@ for (const month of ['2026-08', '2026-09'] as const) {
     shouldMove,
   );
 }
+
+console.log('\n— Savings —');
+
+const withSavings: Budget = {
+  ...sheetBudget,
+  savings: [
+    { id: 's1', memberId: 'm1', name: 'Pension', amount: 4000 },
+    // Paused from September, so it counts in August and not after.
+    {
+      id: 's2',
+      memberId: 'm1',
+      name: 'Fond',
+      amount: 1000,
+      periods: [{ to: '2026-09' }],
+      terms: [{ from: '2026-09', amount: 2500 }],
+    },
+  ],
+};
+
+expect('August counts both savings', savingsTotal(withSavings, '2026-08') === 5000, true);
+expect('September drops the paused one', savingsTotal(withSavings, '2026-09') === 4000, true);
+expect('the split is untouched by savings',
+  calculateMonth(withSavings, MONTH).surplusPerMember ===
+    calculateMonth(sheetBudget, MONTH).surplusPerMember,
+  true);
 
 /* ---------- Monthly income prompt ---------- */
 

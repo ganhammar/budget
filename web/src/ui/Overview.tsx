@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useBudget } from '../store/store';
-import { calculateMonth, forecast } from '../domain/engine';
+import { calculateMonth, forecast, savingsTotal } from '../domain/engine';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
 import { Card, Empty, Field, MonthInput, Note, Stat } from './components';
@@ -11,7 +11,7 @@ import { useText } from '../i18n';
 const FORECAST_MONTHS = 24;
 
 export function Overview() {
-  const { budget } = useBudget();
+  const { budget, me } = useBudget();
   const t = useText();
   const [month, setMonth] = useState(currentMonth());
   const [showTable, setShowTable] = useState(false);
@@ -66,7 +66,11 @@ export function Overview() {
         {result.memberLines.length === 0 ? (
           <Empty text={t.noActiveMembers} />
         ) : (
-          result.memberLines.map((line) => (
+          result.memberLines.map((line) => {
+            // Only your own block can carry this: another member's savings never
+            // reach this client, so there is nothing to leak or to hide.
+            const savings = line.memberId === me.id ? savingsTotal(budget, month) : 0;
+            return (
             <div className="transfer" key={line.memberId}>
               <div className="transfer-name">{line.name}</div>
               <div className="transfer-headline">
@@ -83,12 +87,19 @@ export function Overview() {
                 <span>{t.paysDirectly}</span>
                 <span>{line.paidDirectly > 0 ? `−${sek(line.paidDirectly)}` : '—'}</span>
               </div>
+              {savings > 0 && (
+                <div className="transfer-line">
+                  <span>{t.savings}</span>
+                  <span>−{sek(savings)}</span>
+                </div>
+              )}
               <div className="transfer-line">
-                <span>{t.leftForYourself}</span>
-                <span>{sek(line.leftOver)}</span>
+                <span>{savings > 0 ? t.leftAfterSavings : t.leftForYourself}</span>
+                <span>{sek(line.leftOver - savings)}</span>
               </div>
             </div>
-          ))
+            );
+          })
         )}
         <div style={{ marginTop: 12 }}>
           <Note>

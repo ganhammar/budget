@@ -125,7 +125,13 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
 
     /* ---------- Whole budget ---------- */
 
-    public async Task<BudgetDto?> GetBudgetAsync(string householdId, CancellationToken ct)
+    /// <summary>
+    /// The household's budget as <paramref name="callerMemberId"/> may see it. Savings
+    /// belong to one member and are dropped for everyone else here, in the only place
+    /// that reads them, so no caller can receive another member's.
+    /// </summary>
+    public async Task<BudgetDto?> GetBudgetAsync(
+        string householdId, string? callerMemberId, CancellationToken ct)
     {
         var members = new List<Member>();
         var costs = new List<RecurringCost>();
@@ -133,6 +139,7 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
         var loans = new List<Loan>();
         var streams = new List<AmortizationStream>();
         var income = new List<IncomeEntry>();
+        var savings = new List<Saving>();
         BudgetMeta? meta = null;
 
         Dictionary<string, AttributeValue>? startKey = null;
@@ -170,6 +177,9 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
                     Add(streams, JsonSerializer.Deserialize(json, AppJsonContext.Default.AmortizationStream));
                 else if (sk.StartsWith("INCOME#", StringComparison.Ordinal))
                     Add(income, JsonSerializer.Deserialize(json, AppJsonContext.Default.IncomeEntry));
+                else if (callerMemberId is not null
+                    && sk.StartsWith($"SAVING#{callerMemberId}#", StringComparison.Ordinal))
+                    Add(savings, JsonSerializer.Deserialize(json, AppJsonContext.Default.Saving));
             }
 
             startKey = page.LastEvaluatedKey is { Count: > 0 } ? page.LastEvaluatedKey : null;
@@ -185,13 +195,23 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
             loans,
             streams,
             income,
-            meta.AccountBalance);
+            meta.AccountBalance,
+            savings);
 
         static void Add<T>(List<T> list, T? value)
         {
             if (value is not null) list.Add(value);
         }
     }
+
+    /* ---------- Savings ---------- */
+
+    public Task PutSavingAsync(string householdId, Saving saving, CancellationToken ct) =>
+        Put(HouseholdKey(householdId), $"SAVING#{saving.MemberId}#{saving.Id}",
+            JsonSerializer.Serialize(saving, AppJsonContext.Default.Saving), ct);
+
+    public Task DeleteSavingAsync(string householdId, string memberId, string id, CancellationToken ct) =>
+        Delete(HouseholdKey(householdId), $"SAVING#{memberId}#{id}", ct);
 
     /* ---------- Meta ---------- */
 

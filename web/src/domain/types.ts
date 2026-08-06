@@ -57,11 +57,6 @@ export interface ActivePeriod {
 }
 
 /**
- * A recurring cost. `amount` is what gets charged each time and `intervalMonths`
- * how often. The budgeted monthly figure is amount / intervalMonths, while the
- * actual withdrawal happens in the months implied by `firstCharge`.
- */
-/**
  * What a cost charges and who pays it, from a given month onwards. The loan
  * equivalent is LoanTerms; both exist so that raising a price records a change
  * rather than rewriting what last year cost.
@@ -72,6 +67,11 @@ export interface CostTerms {
   payerId?: string;
 }
 
+/**
+ * A recurring cost. `amount` is what gets charged each time and `intervalMonths`
+ * how often. The budgeted monthly figure is amount / intervalMonths, while the
+ * actual withdrawal happens in the months implied by `firstCharge`.
+ */
 export interface RecurringCost {
   id: string;
   category: string;
@@ -112,6 +112,26 @@ export interface OneOffCost {
   start: Month;
   end: Month;
   payerId?: string;
+}
+
+/** Contribution from a month onwards, the same idea as CostTerms. */
+export interface SavingTerms {
+  from: Month;
+  amount: number;
+}
+
+/**
+ * A member's own long-term saving. Private: the API only ever sends you your own,
+ * so `budget.savings` holds yours and nobody else's, and the split is unaffected.
+ */
+export interface Saving {
+  id: string;
+  memberId: string;
+  name: string;
+  /** In force before the first terms entry. */
+  amount: number;
+  periods?: ActivePeriod[];
+  terms?: SavingTerms[];
 }
 
 export type RateFixation = 'floating3m' | '1y' | '2y' | '3y' | '5y' | '10y';
@@ -174,6 +194,8 @@ export interface Budget {
   income: IncomeEntry[];
   /** Actual balance of the joint account, the starting point for the forecast. */
   accountBalance: AccountBalance | null;
+  /** Only your own. Other members' savings never reach this client. */
+  savings: Saving[];
 }
 
 /** Active members share the surplus. Invited members who have not signed in do not. */

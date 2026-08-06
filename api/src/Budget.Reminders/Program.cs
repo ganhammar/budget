@@ -62,7 +62,8 @@ public static class Program
         var sent = 0;
         foreach (var householdId in households)
         {
-            var budget = await store.GetBudgetAsync(householdId, ct);
+            // No caller, so no savings are read: the reminders never touch private data.
+            var budget = await store.GetBudgetAsync(householdId, null, ct);
             if (budget is null) continue;
 
             foreach (var member in IncomeRules.AwaitingIncome(budget, month))

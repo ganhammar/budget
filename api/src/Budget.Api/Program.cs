@@ -118,7 +118,7 @@ app.MapPost("/api/households", async (
     await store.PutMemberAsync(householdId, member, ct);
     await store.PutProfileAsync(new UserProfile(email, householdId, memberId), ct);
 
-    var budget = await store.GetBudgetAsync(householdId, ct);
+    var budget = await store.GetBudgetAsync(householdId, memberId, ct);
     return budget is null
         ? Results.Problem("Hushållet kunde inte läsas tillbaka.")
         : Results.Created("/api/budget", budget);
@@ -133,7 +133,7 @@ api.MapGet("/budget", async (HttpContext ctx, BudgetStore store, SessionTokens s
     var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
 
-    var budget = await store.GetBudgetAsync(caller.HouseholdId, ct);
+    var budget = await store.GetBudgetAsync(caller.HouseholdId, caller.Member?.Id, ct);
     return budget is null ? Results.NotFound(new ErrorResponse("Inget hushåll")) : Results.Ok(budget);
 });
 
@@ -290,6 +290,29 @@ api.MapDelete("/members/{id}", async (
     if (member is not null) await s.DeleteProfileAsync(member.Email, ct);
 
     await s.DeleteMemberAsync(caller.HouseholdId, id, ct);
+    return Results.NoContent();
+});
+
+// Private to the member. The body's MemberId is ignored in favour of the caller's,
+// so nobody can write into someone else's savings by editing a payload.
+api.MapPut("/savings/{id}", async (
+    string id, Saving body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
+
+    await s.PutSavingAsync(
+        caller.HouseholdId, body with { Id = id, MemberId = caller.Member.Id }, ct);
+    return Results.NoContent();
+});
+
+api.MapDelete("/savings/{id}", async (
+    string id, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
+
+    await s.DeleteSavingAsync(caller.HouseholdId, caller.Member.Id, id, ct);
     return Results.NoContent();
 });
 

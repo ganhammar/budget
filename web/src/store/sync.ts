@@ -16,6 +16,7 @@ export function planSync(previous: Budget, next: Budget): Promise<unknown>[] {
   collection(calls, 'costs', previous.recurringCosts, next.recurringCosts, (c) => c.id);
   collection(calls, 'oneoffs', previous.oneOffCosts, next.oneOffCosts, (c) => c.id);
   collection(calls, 'loans', previous.loans, next.loans, (l) => l.id);
+  collection(calls, 'savings', previous.savings, next.savings, (s) => s.id);
   collection(
     calls,
     'streams',

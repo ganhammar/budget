@@ -21,6 +21,7 @@ function normalize(budget: Budget): Budget {
     amortizationStreams: budget.amortizationStreams ?? [],
     income: budget.income ?? [],
     accountBalance: budget.accountBalance ?? null,
+    savings: budget.savings ?? [],
   };
 }
 

@@ -1,4 +1,4 @@
-import type { Budget, Loan, Month, OneOffCost, RecurringCost } from './types';
+import type { ActivePeriod, Budget, Loan, Month, OneOffCost, RecurringCost, Saving } from './types';
 import type { Text } from '../i18n';
 import { activeMembers } from './types';
 import {
@@ -21,9 +21,9 @@ import {
  * remove the cost from every month including the ones it was actually paid in, and
  * the whole point is that past months keep their figures.
  */
-export function isCostLiveIn(cost: RecurringCost, month: Month): boolean {
-  if (!cost.periods || cost.periods.length === 0) return true;
-  return cost.periods.some(
+export function isCostLiveIn(item: { periods?: ActivePeriod[] }, month: Month): boolean {
+  if (!item.periods || item.periods.length === 0) return true;
+  return item.periods.some(
     (p) =>
       (!p.from || monthsBetween(p.from, month) >= 0) &&
       (!p.to || monthsBetween(month, p.to) > 0),
@@ -31,13 +31,13 @@ export function isCostLiveIn(cost: RecurringCost, month: Month): boolean {
 }
 
 /** Live right now, which is what the list hides when you pause something. */
-export function isCostPaused(cost: RecurringCost, month: Month): boolean {
-  return !isCostLiveIn(cost, month);
+export function isCostPaused(item: { periods?: ActivePeriod[] }, month: Month): boolean {
+  return !isCostLiveIn(item, month);
 }
 
-/** The month a paused cost stopped counting, for showing on the row. */
-export function pausedFrom(cost: RecurringCost): Month | null {
-  const closed = (cost.periods ?? []).filter((p) => p.to);
+/** The month a paused item stopped counting, for showing on the row. */
+export function pausedFrom(item: { periods?: ActivePeriod[] }): Month | null {
+  const closed = (item.periods ?? []).filter((p) => p.to);
   if (closed.length === 0) return null;
   return closed.map((p) => p.to!).sort().at(-1) ?? null;
 }
@@ -116,6 +116,26 @@ export function intervalLabel(cost: RecurringCost, t: Text): string {
 /** Upcoming charge months, for display in the list. */
 export function upcomingCharges(cost: RecurringCost, from: Month, count: number): Month[] {
   return monthRange(from, addMonths(from, count - 1)).filter((m) => isChargedIn(cost, m));
+}
+
+/* ---------- Savings ---------- */
+
+/** The contribution in force for a month, else the saving's own amount. */
+export function savingAmountAt(saving: Saving, month: Month): number {
+  const applicable = (saving.terms ?? [])
+    .filter((entry) => entry.from <= month)
+    .sort((a, b) => a.from.localeCompare(b.from));
+  return applicable[applicable.length - 1]?.amount ?? saving.amount;
+}
+
+/**
+ * What you are putting away this month. Paused savings count for nothing now but
+ * stay in the months they ran, the same as a paused cost.
+ */
+export function savingsTotal(budget: Budget, month: Month): number {
+  return budget.savings
+    .filter((s) => isCostLiveIn(s, month))
+    .reduce((sum, s) => sum + savingAmountAt(s, month), 0);
 }
 
 /* ---------- One-off costs ---------- */

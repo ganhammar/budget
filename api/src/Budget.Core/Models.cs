@@ -63,6 +63,22 @@ public sealed record OneOffCost(
     string End,
     string? PayerId);
 
+/// <summary>Contribution from a month onwards; see the client's savingAmountAt.</summary>
+public sealed record SavingTerms(string From, decimal Amount);
+
+/// <summary>
+/// A member's own long-term saving. Unlike everything else in a household this is
+/// private: it is filtered to the caller when the budget is read, and writes are
+/// stamped with the caller's member id rather than trusting the body.
+/// </summary>
+public sealed record Saving(
+    string Id,
+    string MemberId,
+    string Name,
+    decimal Amount,
+    List<ActivePeriod>? Periods = null,
+    List<SavingTerms>? Terms = null);
+
 /// <summary>Rate and payer from a month onwards; see the client's termsAt.</summary>
 public sealed record LoanTerms(string From, decimal NominalRate, string? PayerId);
 
@@ -98,7 +114,9 @@ public sealed record BudgetDto(
     List<Loan> Loans,
     List<AmortizationStream> AmortizationStreams,
     List<IncomeEntry> Income,
-    AccountBalance? AccountBalance);
+    AccountBalance? AccountBalance,
+    /// <summary>Only the caller's own; never another member's.</summary>
+    List<Saving> Savings);
 
 /// <summary>Maps a sign-in identity to its household. Replaced by JWT claims later.</summary>
 public sealed record UserProfile(string Email, string HouseholdId, string MemberId);
