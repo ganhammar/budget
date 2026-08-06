@@ -324,6 +324,27 @@ api.MapDelete("/savings/{id}", async (
     return Results.NoContent();
 });
 
+// Only the rules the client knows how to calculate: an unknown value would leave
+// every member line silently wrong rather than obviously broken.
+api.MapPut("/household/split", async (
+    SplitRequest request, HttpContext ctx, BudgetStore store, SessionTokens sessions,
+    CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+
+    string[] allowed = ["equalLeftover", "byIncome", "even"];
+    if (!allowed.Contains(request.Split))
+        return Results.Json(new ErrorResponse("Okänd fördelningsregel."), statusCode: 400);
+
+    var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
+    if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
+
+    await store.PutMetaAsync(
+        meta with { Household = meta.Household with { Split = request.Split } }, ct);
+    return Results.NoContent();
+});
+
 /* ---------- Push notifications ---------- */
 
 // The public key is not a secret: the browser needs it to create a subscription.

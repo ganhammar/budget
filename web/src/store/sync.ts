@@ -45,6 +45,10 @@ export function planSync(previous: Budget, next: Budget): Promise<unknown>[] {
     calls.push(api.setCategories(afterCategories));
   }
 
+  if (previous.household.split !== next.household.split && next.household.split) {
+    calls.push(api.setSplit(next.household.split));
+  }
+
   const before = previous.accountBalance;
   const after = next.accountBalance;
   if (after && (!before || before.month !== after.month || before.amount !== after.amount)) {

@@ -5,7 +5,7 @@
  * Where the engine and the sheet disagree, the sheet is the one that is wrong:
  * it applies ROUNDUP to each loan's interest, inflating the total by 3.72 kr/month.
  */
-import type { Budget, RecurringCost } from '../src/domain/types';
+import type { Budget, RecurringCost, SplitRule } from '../src/domain/types';
 import {
   calculateMonth,
   debtAtStartOf,
@@ -243,6 +243,46 @@ expect('the split is untouched by savings',
   calculateMonth(withSavings, MONTH).surplusPerMember ===
     calculateMonth(sheetBudget, MONTH).surplusPerMember,
   true);
+
+console.log('\n— The household split rule —');
+{
+  // Same month, same money, three positions on what fair means.
+  const withRule = (split: SplitRule) => {
+    const budget = { ...sheetBudget, household: { ...sheetBudget.household, split } };
+    const result = calculateMonth(budget, MONTH);
+    return {
+      petra: result.memberLines.find((l) => l.memberId === PETRA)!,
+      anton: result.memberLines.find((l) => l.memberId === ANTON)!,
+      costs: result.totalCosts,
+    };
+  };
+
+  const equal = withRule('equalLeftover');
+  check('equal: absent rule is the same as equalLeftover', equal.anton.toTransfer, anton.toTransfer, 0.001);
+
+  const byIncome = withRule('byIncome');
+  // Petra earns 37 887 of 85 887, so she carries 44.11% of the 43 483.50 in costs.
+  check('byIncome: Petra carries her income share', byIncome.petra.costShare, 19181.71, 0.5);
+  check('byIncome: Anton carries the rest', byIncome.anton.costShare, 24301.79, 0.5);
+  check(
+    'byIncome: leftovers stay in proportion',
+    byIncome.petra.leftOver / byIncome.anton.leftOver,
+    37887 / 48000,
+    0.001,
+  );
+
+  const even = withRule('even');
+  check('even: each carries half the costs', even.petra.costShare, even.costs / 2, 0.001);
+  // Equal shares of the costs leave the income gap exactly as it was.
+  check('even: the gap is the income gap', even.anton.leftOver - even.petra.leftOver, 48000 - 37887, 0.001);
+
+  // Whoever pays what, the joint account must still receive exactly what is owed.
+  for (const [name, r] of [['equalLeftover', equal], ['byIncome', byIncome], ['even', even]] as const) {
+    const transferred = r.petra.toTransfer + r.anton.toTransfer;
+    const paidDirectly = r.petra.paidDirectly + r.anton.paidDirectly;
+    check(`${name}: transfers plus direct payments cover the costs`, transferred + paidDirectly, r.costs, 0.001);
+  }
+}
 
 console.log('\n— A loan does not exist before it was taken out —');
 

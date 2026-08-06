@@ -77,6 +77,9 @@ export const api = {
       body: JSON.stringify({ categories }),
     }),
 
+  setSplit: (split: string) =>
+    request<void>('/household/split', { method: 'PUT', body: JSON.stringify({ split }) }),
+
   renameHousehold: (name: string) =>
     request<void>('/household', { method: 'PUT', body: JSON.stringify({ name }) }),
 

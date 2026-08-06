@@ -1,4 +1,5 @@
 import type {
+  SplitRule,
   ActivePeriod,
   AmortizationStream,
   Budget,
@@ -399,6 +400,35 @@ export function hasActualIncome(budget: Budget, memberId: string, month: Month):
 
 /* ---------- Monthly calculation ---------- */
 
+/**
+ * What one member carries of the month's costs. Every split rule reduces to this
+ * one number, and the two figures anyone actually reads follow from it: transfer
+ * what you owe less what you already paid, and keep what your income exceeds it by.
+ */
+function costShareFor(
+  rule: SplitRule,
+  income: number,
+  totalIncome: number,
+  totalCosts: number,
+  surplus: number,
+  members: number,
+): number {
+  if (members === 0) return 0;
+
+  switch (rule) {
+    case 'byIncome':
+      // Nobody earning anything is the only case with no proportion to go on;
+      // splitting it evenly at least keeps the household's books balanced.
+      return totalIncome > 0 ? (totalCosts * income) / totalIncome : totalCosts / members;
+    case 'even':
+      return totalCosts / members;
+    default:
+      // Working back from an equal share of the surplus: what is left of your
+      // income once everyone is to end up with the same amount.
+      return income - surplus / members;
+  }
+}
+
 export interface LoanLine {
   loan: Loan;
   debt: number;
@@ -415,6 +445,8 @@ export interface MemberLine {
   income: number;
   /** Smoothed costs this member pays directly, deducted from their transfer. */
   paidDirectly: number;
+  /** What the household's split rule puts on this member this month. */
+  costShare: number;
   toTransfer: number;
   leftOver: number;
 }
@@ -463,6 +495,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   const totalIncome = members.reduce((sum, m) => sum + incomeFor(budget, m.id, month), 0);
   const surplus = totalIncome - totalCosts;
   const surplusPerMember = members.length > 0 ? surplus / members.length : 0;
+  const rule = budget.household.split ?? 'equalLeftover';
 
   const memberLines: MemberLine[] = members.map((member) => {
     const income = incomeFor(budget, member.id, month);
@@ -472,14 +505,17 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
         .reduce((sum, c) => sum + monthlyAmount(c, month), 0) +
       activeOneOffs.filter((c) => c.payerId === member.id).reduce((s, c) => s + monthlyShare(c), 0) +
       loanLines.filter((l) => l.payerId === member.id).reduce((s, l) => s + l.total, 0);
-    const toTransfer = income - paidDirectly - surplusPerMember;
+    const costShare = costShareFor(
+      rule, income, totalIncome, totalCosts, surplus, members.length,
+    );
     return {
       memberId: member.id,
       name: member.name,
       income,
       paidDirectly,
-      toTransfer,
-      leftOver: income - paidDirectly - toTransfer,
+      costShare,
+      toTransfer: costShare - paidDirectly,
+      leftOver: income - costShare,
     };
   });
 

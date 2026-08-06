@@ -40,9 +40,17 @@ export function Overview() {
         </Field>
         <div className="hero">
           <span className="value">{sek(result.surplus)}</span>
+          {/* "each" is only true when the rule is an equal amount left over; under
+              the others the leftovers differ and naming one figure would mislead. */}
           <span className="label">
-            {t.leftToSplit(result.memberLines.length)}{' '}
-            <strong>{sek(result.surplusPerMember)}</strong> {t.each}
+            {(budget.household.split ?? 'equalLeftover') === 'equalLeftover' ? (
+              <>
+                {t.leftToSplit(result.memberLines.length)}{' '}
+                <strong>{sek(result.surplusPerMember)}</strong> {t.each}
+              </>
+            ) : (
+              t.leftAfterCosts
+            )}
           </span>
         </div>
       </Card>

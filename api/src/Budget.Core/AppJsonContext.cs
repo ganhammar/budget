@@ -31,6 +31,7 @@ namespace Budget.Api;
 [JsonSerializable(typeof(GoogleSignInRequest))]
 [JsonSerializable(typeof(RenameHouseholdRequest))]
 [JsonSerializable(typeof(CategoriesRequest))]
+[JsonSerializable(typeof(SplitRequest))]
 [JsonSerializable(typeof(PutIncomeRequest))]
 [JsonSerializable(typeof(MeResponse))]
 [JsonSerializable(typeof(ErrorResponse))]

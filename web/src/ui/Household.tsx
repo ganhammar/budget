@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useBudget, newId } from '../store/store';
-import type { Member, Role } from '../domain/types';
+import type { Member, Role, SplitRule } from '../domain/types';
 import { sek } from '../domain/format';
 import { Card, Field, ListRow, Note, Sheet } from './components';
 import { api } from '../api/client';
@@ -95,7 +95,12 @@ export function Household() {
     setSelected(null);
   }
 
+  function setSplit(split: SplitRule) {
+    update((b) => ({ ...b, household: { ...b.household, split } }));
+  }
+
   const adminCount = budget.members.filter((m) => m.role === 'admin').length;
+  const split = budget.household.split ?? 'equalLeftover';
 
   return (
     <>
@@ -136,6 +141,31 @@ export function Household() {
             />
           ))}
         </div>
+        {/* The one contested decision in the model, so it says in words what it
+            does rather than leaving people to infer it from the numbers. */}
+        <div className="household-split">
+          <Field
+            label={t.splitRule}
+            hint={
+              split === 'byIncome'
+                ? t.splitHintByIncome
+                : split === 'even'
+                  ? t.splitHintEven
+                  : t.splitHintEqualLeftover
+            }
+          >
+            <select
+              value={split}
+              disabled={!isAdmin}
+              onChange={(e) => setSplit(e.target.value as SplitRule)}
+            >
+              <option value="equalLeftover">{t.splitEqualLeftover}</option>
+              <option value="byIncome">{t.splitByIncome}</option>
+              <option value="even">{t.splitEven}</option>
+            </select>
+          </Field>
+        </div>
+
         {!isAdmin && (
           <div style={{ marginTop: 12 }}>
             <Note>

@@ -4,12 +4,28 @@ export type Month = string;
 export type Role = 'admin' | 'member';
 
 /** The household is the tenant. All budget data belongs to exactly one household. */
+/**
+ * How a household divides the month's costs between its members. This is the one
+ * genuinely contested decision in the whole model, so it is a household setting
+ * rather than arithmetic baked into the engine.
+ *
+ * - `equalLeftover` pools everything: whatever is left after costs is divided
+ *   equally, so both members end the month with the same spending money and the
+ *   higher earner absorbs the whole difference.
+ * - `byIncome` divides the costs in proportion to what each earns, so what is
+ *   left over stays in proportion too.
+ * - `even` divides the costs down the middle regardless of income.
+ */
+export type SplitRule = 'equalLeftover' | 'byIncome' | 'even';
+
 export interface Household {
   id: string;
   name: string;
   created: Month;
   /** Absent on households created before categories were editable. */
   categories?: string[];
+  /** Absent means `equalLeftover`, which is what every household had before this. */
+  split?: SplitRule;
 }
 
 /**

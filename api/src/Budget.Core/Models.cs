@@ -5,7 +5,17 @@ namespace Budget.Api;
 /// household predates the setting; the client falls back to the categories its costs
 /// already use, so nothing needs migrating.
 /// </summary>
-public sealed record Household(string Id, string Name, string Created, List<string>? Categories = null);
+/// <summary>
+/// <c>Split</c> names how costs are divided between members; null means the
+/// original rule, an equal amount left over for everyone. The client owns the
+/// arithmetic, so this is stored and served rather than interpreted here.
+/// </summary>
+public sealed record Household(
+    string Id,
+    string Name,
+    string Created,
+    List<string>? Categories = null,
+    string? Split = null);
 
 /// <summary>
 /// Preferences are optional: records written before they existed simply have null,
@@ -148,6 +158,8 @@ public sealed record CreateHouseholdRequest(string HouseholdName, string Name);
 public sealed record RenameHouseholdRequest(string Name);
 
 public sealed record CategoriesRequest(List<string> Categories);
+
+public sealed record SplitRequest(string Split);
 
 public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth);
 
