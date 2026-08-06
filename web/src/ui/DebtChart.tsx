@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { useWidth, usePointerIndex } from './chart';
-import type { DebtPoint } from '../domain/engine';
 import type { Loan } from '../domain/types';
 import { sek } from '../domain/format';
 import { formatMonth, formatMonthShort } from '../domain/month';
@@ -237,7 +236,7 @@ export function SeriesChart({
   );
 }
 
-export function DebtTable({ points, loans }: { points: DebtPoint[]; loans: Loan[] }) {
+export function SeriesTable({ points, loans }: { points: SeriesPoint[]; loans: Loan[] }) {
   const t = useText();
   // One row per year keeps this readable over a payoff that runs for decades.
   const yearly = points.filter((p, i) => i === 0 || p.month.endsWith('-01'));
@@ -259,10 +258,10 @@ export function DebtTable({ points, loans }: { points: DebtPoint[]; loans: Loan[
             <tr key={p.month}>
               <td>{formatMonthShort(p.month)}</td>
               {loans.map((l) => (
-                <td key={l.id}>{sek(p.debts[l.id] ?? 0)}</td>
+                <td key={l.id}>{sek(p.values[l.id] ?? 0)}</td>
               ))}
               <td>
-                <strong>{sek(loans.reduce((s, l) => s + (p.debts[l.id] ?? 0), 0))}</strong>
+                <strong>{sek(loans.reduce((s, l) => s + (p.values[l.id] ?? 0), 0))}</strong>
               </td>
             </tr>
           ))}

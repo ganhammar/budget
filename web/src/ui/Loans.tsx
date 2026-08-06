@@ -17,7 +17,7 @@ import {
 } from '../domain/engine';
 import { figure, percent, sek } from '../domain/format';
 import { addMonths, currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
-import { DebtTable, SeriesChart } from './DebtChart';
+import { SeriesChart, SeriesTable } from './DebtChart';
 import {
   ActionSheet,
   AmountInput,
@@ -64,6 +64,7 @@ export function Loans() {
   const [hidden, setHidden] = useState<string[]>([]);
   const [showDebtTable, setShowDebtTable] = useState(false);
   const [splitLoans, setSplitLoans] = useState(false);
+  const [view, setView] = useState<'debt' | 'interest'>('debt');
 
   const nowMonth = currentMonth();
   const debtFree = debtFreeMonth(budget);
@@ -90,6 +91,15 @@ export function Loans() {
     if (span < 2) return [];
     return debtOverTime(budget, rangeFrom, Math.min(span, 600));
   }, [budget, rangeFrom, rangeTo]);
+
+  const seriesPoints = useMemo(
+    () =>
+      debtPoints.map((p) => ({
+        month: p.month,
+        values: view === 'debt' ? p.debts : p.interest,
+      })),
+    [debtPoints, view],
+  );
 
   const result = calculateMonth(budget, nowMonth);
   const totalDebt = result.loanLines.reduce((sum, l) => sum + l.debt, 0);
@@ -213,6 +223,13 @@ export function Loans() {
             </span>
           }
         >
+          <Field label={t.showing}>
+            <select value={view} onChange={(e) => setView(e.target.value as 'debt' | 'interest')}>
+              <option value="debt">{t.debt}</option>
+              <option value="interest">{t.interestCost}</option>
+            </select>
+          </Field>
+
           <div className="field-pair">
             <Field label={t.from}>
               <MonthInput value={rangeFrom} onChange={setRangeFrom} />
@@ -238,51 +255,41 @@ export function Loans() {
           ) : debtPoints.length < 2 ? (
             <Empty text={t.rangeTooShort} />
           ) : showDebtTable ? (
-            <DebtTable points={debtPoints} loans={shown} />
+            <SeriesTable points={seriesPoints} loans={shown} />
           ) : (
-            <>
-              <div className="group-label">{t.debtOverTime}</div>
-              <SeriesChart
-                points={debtPoints.map((p) => ({ month: p.month, values: p.debts }))}
-                loans={shown}
-                colorIndex={colorIndex}
-                split={splitLoans}
-                combinedLabel={t.total}
-                ariaLabel={t.debtChartLabel}
-                formatTick={(v) =>
-                  v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${Math.round(v / 1000)}k`
-                }
-                footer={
+            <SeriesChart
+              points={seriesPoints}
+              loans={shown}
+              colorIndex={colorIndex}
+              split={splitLoans}
+              combinedLabel={t.total}
+              ariaLabel={view === 'debt' ? t.debtChartLabel : t.interestChartLabel}
+              formatTick={
+                view === 'debt'
+                  ? (v) =>
+                      v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${Math.round(v / 1000)}k`
+                  : figure
+              }
+              footer={
+                view === 'debt' ? (
                   <>
                     <div className="legend">
                       {shown.map((loan) => (
                         <span className="legend-item" key={loan.id}>
                           {loan.description}
                           <em>
-                            {payoff[loan.id]
-                              ? formatMonthShort(payoff[loan.id]!)
-                              : t.notAmortized}
+                            {payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : t.notAmortized}
                           </em>
                         </span>
                       ))}
                     </div>
                     <span className="hint">{t.pointForDebt}</span>
                   </>
-                }
-              />
-
-              <div className="group-label">{t.interestCost}</div>
-              <SeriesChart
-                points={debtPoints.map((p) => ({ month: p.month, values: p.interest }))}
-                loans={shown}
-                colorIndex={colorIndex}
-                split={splitLoans}
-                combinedLabel={t.total}
-                ariaLabel={t.interestChartLabel}
-                formatTick={figure}
-                footer={<span className="hint">{t.pointForInterest}</span>}
-              />
-            </>
+                ) : (
+                  <span className="hint">{t.pointForInterest}</span>
+                )
+              }
+            />
           )}
         </Card>
       )}
