@@ -19,6 +19,7 @@ import { percent, sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
 import { DebtChart, DebtTable } from './DebtChart';
 import {
+  ActionSheet,
   AmountInput,
   Card,
   Empty,
@@ -53,6 +54,7 @@ export function Loans() {
   const [loanDraft, setLoanDraft] = useState<Loan | null>(null);
   /** The loan whose action menu is open. */
   const [actionsFor, setActionsFor] = useState<Loan | null>(null);
+  const [streamActions, setStreamActions] = useState<AmortizationStream | null>(null);
   /** The loan whose terms are being changed, and the entry being written. */
   const [termsFor, setTermsFor] = useState<Loan | null>(null);
   const [termsDraft, setTermsDraft] = useState<LoanTerms | null>(null);
@@ -157,13 +159,13 @@ export function Loans() {
     setStreamDraft(null);
   }
 
-  function removeStream() {
-    if (!streamDraft) return;
+  function removeStream(stream: AmortizationStream) {
     update((b) => ({
       ...b,
-      amortizationStreams: b.amortizationStreams.filter((s) => s.id !== streamDraft.id),
+      amortizationStreams: b.amortizationStreams.filter((s) => s.id !== stream.id),
     }));
     setStreamDraft(null);
+    setStreamActions(null);
   }
 
   return (
@@ -291,10 +293,7 @@ export function Loans() {
                 .join(stream.mode === 'priority' ? ' → ' : ' + ')}`}
               amount={sek(stream.amount)}
               amountNote={t.perMonth}
-              onClick={() => {
-                setStreamDraft({ ...stream, loanIds: [...stream.loanIds] });
-                setIsNew(false);
-              }}
+              onClick={() => setStreamActions(stream)}
             />
           ))}
         </div>
@@ -495,11 +494,9 @@ export function Loans() {
           </Field>
 
           <div className="btn-row">
-            {!isNew && (
-              <button className="btn btn-danger" onClick={removeStream}>
-                {t.remove}
-              </button>
-            )}
+            <button className="btn btn-secondary" onClick={() => setStreamDraft(null)}>
+              {t.cancel}
+            </button>
             <button className="btn" onClick={saveStream}>
               {t.save}
             </button>
@@ -508,37 +505,58 @@ export function Loans() {
       )}
 
       {actionsFor && (
-        <Sheet title={actionsFor.description} onClose={() => setActionsFor(null)}>
-          <div className="action-list">
-            <button
-              className="action"
-              onClick={() => {
+        <ActionSheet
+          title={actionsFor.description}
+          onClose={() => setActionsFor(null)}
+          actions={[
+            {
+              label: t.edit,
+              onSelect: () => {
                 setLoanDraft({ ...actionsFor });
                 setIsNew(false);
                 setActionsFor(null);
-              }}
-            >
-              {t.edit}
-            </button>
-            <button
-              className="action"
-              onClick={() => {
+              },
+            },
+            {
+              label: t.changeTerms,
+              onSelect: () => {
                 openTerms(actionsFor);
                 setActionsFor(null);
-              }}
-            >
-              {t.changeTerms}
-            </button>
-            <button
-              className="action danger"
-              onClick={() => {
-                if (confirm(t.confirmRemoveLoan(actionsFor.description))) removeLoan(actionsFor);
-              }}
-            >
-              {t.remove}
-            </button>
-          </div>
-        </Sheet>
+              },
+            },
+            {
+              label: t.remove,
+              danger: true,
+              onSelect: () => {
+                if (confirm(t.confirmRemove(actionsFor.description))) removeLoan(actionsFor);
+              },
+            },
+          ]}
+        />
+      )}
+
+      {streamActions && (
+        <ActionSheet
+          title={streamActions.name}
+          onClose={() => setStreamActions(null)}
+          actions={[
+            {
+              label: t.edit,
+              onSelect: () => {
+                setStreamDraft({ ...streamActions, loanIds: [...streamActions.loanIds] });
+                setIsNew(false);
+                setStreamActions(null);
+              },
+            },
+            {
+              label: t.remove,
+              danger: true,
+              onSelect: () => {
+                if (confirm(t.confirmRemove(streamActions.name))) removeStream(streamActions);
+              },
+            },
+          ]}
+        />
       )}
 
       {termsFor && termsDraft && (

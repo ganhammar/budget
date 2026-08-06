@@ -10,7 +10,18 @@ import {
 } from '../domain/engine';
 import { sek } from '../domain/format';
 import { addMonths, currentMonth, formatMonthShort } from '../domain/month';
-import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet } from './components';
+import {
+  ActionSheet,
+  AmountInput,
+  Card,
+  Empty,
+  Field,
+  ListRow,
+  MonthInput,
+  Note,
+  PayerSelect,
+  Sheet,
+} from './components';
 import { useText } from '../i18n';
 
 function blank(): OneOffCost {
@@ -22,6 +33,8 @@ export function OneOffCosts() {
   const { budget, update } = useBudget();
   const t = useText();
   const [draft, setDraft] = useState<OneOffCost | null>(null);
+  /** The cost whose action menu is open. */
+  const [actionsFor, setActionsFor] = useState<OneOffCost | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [showFinished, setShowFinished] = useState(false);
 
@@ -43,10 +56,10 @@ export function OneOffCosts() {
     setDraft(null);
   }
 
-  function remove() {
-    if (!draft) return;
-    update((b) => ({ ...b, oneOffCosts: b.oneOffCosts.filter((c) => c.id !== draft.id) }));
+  function remove(cost: OneOffCost) {
+    update((b) => ({ ...b, oneOffCosts: b.oneOffCosts.filter((c) => c.id !== cost.id) }));
     setDraft(null);
+    setActionsFor(null);
   }
 
   const memberName = (id?: string) => budget.members.find((m) => m.id === id)?.name;
@@ -59,10 +72,7 @@ export function OneOffCosts() {
       subtitle={`${sek(cost.total)} · ${formatMonthShort(cost.start)}–${formatMonthShort(addMonths(cost.end, -1))} · ${t.monthsLeft(monthsRemaining(cost, now), sek(remainingToRepay(cost, now)))}`}
       amount={sek(monthlyShare(cost))}
       amountNote={t.perMonth}
-      onClick={() => {
-        setDraft({ ...cost });
-        setIsNew(false);
-      }}
+      onClick={() => setActionsFor(cost)}
     />
   );
 
@@ -154,16 +164,38 @@ export function OneOffCosts() {
           )}
 
           <div className="btn-row">
-            {!isNew && (
-              <button className="btn btn-danger" onClick={remove}>
-                {t.remove}
-              </button>
-            )}
+            <button className="btn btn-secondary" onClick={() => setDraft(null)}>
+              {t.cancel}
+            </button>
             <button className="btn" onClick={save}>
               {t.save}
             </button>
           </div>
         </Sheet>
+      )}
+
+      {actionsFor && (
+        <ActionSheet
+          title={actionsFor.description}
+          onClose={() => setActionsFor(null)}
+          actions={[
+            {
+              label: t.edit,
+              onSelect: () => {
+                setDraft({ ...actionsFor });
+                setIsNew(false);
+                setActionsFor(null);
+              },
+            },
+            {
+              label: t.remove,
+              danger: true,
+              onSelect: () => {
+                if (confirm(t.confirmRemove(actionsFor.description))) remove(actionsFor);
+              },
+            },
+          ]}
+        />
       )}
     </>
   );

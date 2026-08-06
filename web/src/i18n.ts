@@ -238,7 +238,7 @@ const sv = {
   loanPlaceholder: 't.ex. Huslån del 1',
   originalDebt: 'Ursprunglig skuld',
   nominalRate: 'Nominell ränta (%)',
-  confirmRemoveLoan: (name: string) => `Ta bort ${name}?`,
+  confirmRemove: (name: string) => `Ta bort ${name}?`,
   currentTerms: 'Ränta och betalare nu',
   changeTerms: 'Ändra ränta eller betalare',
   changeTermsHint:
@@ -526,7 +526,7 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   loanPlaceholder: 'e.g. Mortgage part 1',
   originalDebt: 'Original debt',
   nominalRate: 'Nominal rate (%)',
-  confirmRemoveLoan: (name: string) => `Remove ${name}?`,
+  confirmRemove: (name: string) => `Remove ${name}?`,
   currentTerms: 'Rate and payer now',
   changeTerms: 'Change rate or payer',
   changeTermsHint:

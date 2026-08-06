@@ -15,7 +15,18 @@ import {
 } from '../domain/engine';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth, formatMonthShort } from '../domain/month';
-import { AmountInput, Card, Empty, Field, ListRow, MonthInput, Note, PayerSelect, Sheet } from './components';
+import {
+  ActionSheet,
+  AmountInput,
+  Card,
+  Empty,
+  Field,
+  ListRow,
+  MonthInput,
+  Note,
+  PayerSelect,
+  Sheet,
+} from './components';
 import { monthIntervalLabel, useText, weekIntervalLabel } from '../i18n';
 
 /** Sentinel option value; a real category can never be the empty string. */
@@ -36,6 +47,8 @@ export function RecurringCosts() {
   const { budget, update } = useBudget();
   const t = useText();
   const [draft, setDraft] = useState<RecurringCost | null>(null);
+  /** The cost whose action menu is open. */
+  const [actionsFor, setActionsFor] = useState<RecurringCost | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [showPaused, setShowPaused] = useState(false);
   // Non-null while the category field is a text box rather than the dropdown.
@@ -87,6 +100,7 @@ export function RecurringCosts() {
   function closeSheet() {
     setDraft(null);
     setNewCategory(null);
+    setActionsFor(null);
   }
 
   /**
@@ -115,9 +129,8 @@ export function RecurringCosts() {
     closeSheet();
   }
 
-  function remove() {
-    if (!draft) return;
-    update((b) => ({ ...b, recurringCosts: b.recurringCosts.filter((c) => c.id !== draft.id) }));
+  function remove(cost: RecurringCost) {
+    update((b) => ({ ...b, recurringCosts: b.recurringCosts.filter((c) => c.id !== cost.id) }));
     closeSheet();
   }
 
@@ -160,11 +173,7 @@ export function RecurringCosts() {
                     }
                     amount={sek(monthlyAmount(cost))}
                     amountNote={t.perMonth}
-                    onClick={() => {
-                      setNewCategory(null);
-                      setDraft({ ...cost });
-                      setIsNew(false);
-                    }}
+                    onClick={() => setActionsFor(cost)}
                   />
                 );
               })}
@@ -198,11 +207,7 @@ export function RecurringCosts() {
                       subtitle={`${cost.category}${since ? ` · ${t.pausedSince(formatMonth(since))}` : ''}`}
                       amount={sek(monthlyAmount(cost))}
                       amountNote={t.perMonth}
-                      onClick={() => {
-                        setNewCategory(null);
-                        setDraft({ ...cost });
-                        setIsNew(false);
-                      }}
+                      onClick={() => setActionsFor(cost)}
                     />
                   );
                 })}
@@ -352,29 +357,43 @@ export function RecurringCosts() {
             </Note>
           )}
 
-          {!isNew && (
-            <div className="btn-row">
-              {isCostPaused(draft, thisMonth) ? (
-                <button className="btn btn-secondary" onClick={() => resume(draft)}>
-                  {t.resume}
-                </button>
-              ) : (
-                <button className="btn btn-secondary" onClick={() => pause(draft)}>
-                  {t.pause}
-                </button>
-              )}
-              <button className="btn btn-danger" onClick={remove}>
-                {t.remove}
-              </button>
-            </div>
-          )}
-
           <div className="btn-row">
+            <button className="btn btn-secondary" onClick={closeSheet}>
+              {t.cancel}
+            </button>
             <button className="btn" onClick={save}>
               {t.save}
             </button>
           </div>
         </Sheet>
+      )}
+
+      {actionsFor && (
+        <ActionSheet
+          title={actionsFor.description}
+          onClose={() => setActionsFor(null)}
+          actions={[
+            {
+              label: t.edit,
+              onSelect: () => {
+                setNewCategory(null);
+                setDraft({ ...actionsFor });
+                setIsNew(false);
+                setActionsFor(null);
+              },
+            },
+            isCostPaused(actionsFor, thisMonth)
+              ? { label: t.resume, onSelect: () => resume(actionsFor) }
+              : { label: t.pause, onSelect: () => pause(actionsFor) },
+            {
+              label: t.remove,
+              danger: true,
+              onSelect: () => {
+                if (confirm(t.confirmRemove(actionsFor.description))) remove(actionsFor);
+              },
+            },
+          ]}
+        />
       )}
     </>
   );

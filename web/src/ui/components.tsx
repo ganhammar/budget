@@ -108,6 +108,37 @@ export function Sheet({
   );
 }
 
+/**
+ * What to do with a row, asked before anything opens. Rows have more than one
+ * verb now, and burying destructive ones inside the editor made you enter a form
+ * to leave it again.
+ */
+export function ActionSheet({
+  title,
+  actions,
+  onClose,
+}: {
+  title: string;
+  actions: { label: string; danger?: boolean; onSelect: () => void }[];
+  onClose: () => void;
+}) {
+  return (
+    <Sheet title={title} onClose={onClose}>
+      <div className="action-list">
+        {actions.map((action) => (
+          <button
+            key={action.label}
+            className={`action ${action.danger ? 'danger' : ''}`}
+            onClick={action.onSelect}
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+    </Sheet>
+  );
+}
+
 export function ListRow({
   title,
   subtitle,
