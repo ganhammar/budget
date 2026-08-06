@@ -15,16 +15,21 @@ export function pushSupported(): boolean {
 }
 
 /**
- * iOS only exposes push to a PWA that has been added to the home screen, and
- * silently reports no support otherwise. Worth saying out loud rather than
- * letting the toggle look broken.
+ * iOS and iPadOS only expose push to a web app that has been added to the home
+ * screen, and report no support at all otherwise. Worth saying out loud rather
+ * than letting the toggle look broken.
+ *
+ * An iPad calls itself a Macintosh, so the user agent alone cannot tell them
+ * apart; a Mac has no touch points, which is what separates them.
  */
 export function needsInstall(): boolean {
-  const iOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+  const agent = navigator.userAgent;
+  const apple =
+    /iP(hone|ad|od)/.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
   const installed =
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as { standalone?: boolean }).standalone === true;
-  return iOS && !installed;
+  return apple && !installed;
 }
 
 export async function currentSubscription(): Promise<PushSubscription | null> {
