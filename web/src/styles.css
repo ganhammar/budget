@@ -643,6 +643,26 @@ body {
   accent-color: var(--ink);
 }
 
+/* A checkbox reading as a setting rather than as part of a list. */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.toggle input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.toggle input:disabled {
+  cursor: progress;
+}
+
 /*
  * Fields are surfaces, not lines. A hairline under an input reads as one more
  * horizontal rule on a page already ruled into sections and rows, and it was the

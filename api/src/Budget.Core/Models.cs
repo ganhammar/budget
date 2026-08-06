@@ -63,6 +63,18 @@ public sealed record OneOffCost(
     string End,
     string? PayerId);
 
+/// <summary>
+/// One browser's push subscription. A member has one per device, and like savings
+/// these are private: only the owner ever reads or writes them.
+/// </summary>
+public sealed record PushSubscription(
+    string MemberId,
+    string Endpoint,
+    /// <summary>The subscriber's public key, base64url.</summary>
+    string P256dh,
+    /// <summary>The subscriber's auth secret, base64url.</summary>
+    string Auth);
+
 /// <summary>Contribution from a month onwards; see the client's savingAmountAt.</summary>
 public sealed record SavingTerms(string From, decimal Amount);
 
@@ -135,6 +147,10 @@ public sealed record CreateHouseholdRequest(string HouseholdName, string Name);
 public sealed record RenameHouseholdRequest(string Name);
 
 public sealed record CategoriesRequest(List<string> Categories);
+
+public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth);
+
+public sealed record PushKeyResponse(string PublicKey);
 
 public sealed record PutIncomeRequest(decimal Amount, string? EnteredById);
 

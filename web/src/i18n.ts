@@ -100,6 +100,16 @@ const sv = {
   themeSystem: 'Systemets inställning',
   themeLight: 'Ljust',
   themeDark: 'Mörkt',
+  notifications: 'Notiser',
+  notificationsOn: 'Påslagna',
+  notificationsHint: 'Påminnelse om att fylla i din inkomst, samma dagar som mejlet.',
+  notificationsInstall: 'Lägg till appen på hemskärmen för att kunna få notiser.',
+  notificationsUnsupported: 'Den här webbläsaren stöder inte notiser.',
+  notificationsDenied: 'Notiser är blockerade. Tillåt dem i webbläsarens inställningar.',
+  notificationsFailed: 'Notiser kunde inte slås på.',
+  sendTest: 'Skicka en testnotis',
+  testSent: 'Skickad.',
+  testFailed: 'Testnotisen kunde inte skickas.',
 
   // Overview
   getStarted: 'Kom igång',
@@ -437,6 +447,16 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   themeSystem: 'System preference',
   themeLight: 'Light',
   themeDark: 'Dark',
+  notifications: 'Notifications',
+  notificationsOn: 'On',
+  notificationsHint: 'A reminder to enter your income, on the same days as the email.',
+  notificationsInstall: 'Add the app to your home screen to receive notifications.',
+  notificationsUnsupported: 'This browser does not support notifications.',
+  notificationsDenied: 'Notifications are blocked. Allow them in your browser settings.',
+  notificationsFailed: 'Notifications could not be turned on.',
+  sendTest: 'Send a test notification',
+  testSent: 'Sent.',
+  testFailed: 'The test notification could not be sent.',
 
   getStarted: 'Get started',
   getStartedNote:

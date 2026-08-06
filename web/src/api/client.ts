@@ -15,6 +15,13 @@ export interface Me {
   profile: Profile | null;
 }
 
+/** What the server keeps of a browser subscription. */
+export interface PushKeys {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -97,5 +104,15 @@ export const api = {
 
   deleteIncome: (month: string, memberId: string) =>
     request<void>(`/income/${month}/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
+
+  pushKey: () => request<{ publicKey: string }>('/push/key'),
+
+  subscribePush: (subscription: PushKeys) =>
+    request<void>('/push', { method: 'PUT', body: JSON.stringify(subscription) }),
+
+  unsubscribePush: (subscription: PushKeys) =>
+    request<void>('/push', { method: 'DELETE', body: JSON.stringify(subscription) }),
+
+  sendTestPush: () => request<void>('/push/test', { method: 'POST' }),
 
 };

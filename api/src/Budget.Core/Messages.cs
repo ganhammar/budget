@@ -53,6 +53,26 @@ public static class Messages
                 {appUrl}
                 """);
 
+    public static PushMessage PushTest(string? language) =>
+        IsEnglish(language)
+            ? new PushMessage("Budget", "Notifications are working.", "/")
+            : new PushMessage("Budget", "Notiser fungerar.", "/");
+
+    /// <summary>The same nudge as the mail, cut to what fits on a lock screen.</summary>
+    public static PushMessage IncomePush(string month, bool isFinal, string? language)
+    {
+        var when = FormatMonth(month, language);
+        return IsEnglish(language)
+            ? new PushMessage(
+                isFinal ? "Final reminder" : "Budget",
+                $"Enter your income for {when}.",
+                "/#income")
+            : new PushMessage(
+                isFinal ? "Sista påminnelsen" : "Budget",
+                $"Fyll i din inkomst för {when}.",
+                "/#income");
+    }
+
     public static (string Subject, string Body) IncomeReminder(
         string name,
         string month,

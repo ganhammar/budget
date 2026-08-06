@@ -12,6 +12,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      // The generated worker handles caching; push and notification clicks come
+      // from a hand-written file it imports.
+      workbox: { importScripts: ['/push-sw.js'] },
       manifest: {
         name: 'Budget',
         short_name: 'Budget',

@@ -30,6 +30,9 @@ var sessionSecretArn = builder.Configuration["SESSION_SECRET_ARN"];
 var fromAddress = builder.Configuration["FROM_ADDRESS"] ?? "budget@ganhammar.se";
 var appUrl = builder.Configuration["APP_URL"] ?? "https://budget.ganhammar.se";
 var emailEnabled = builder.Configuration["EMAIL_ENABLED"] != "false";
+var vapidSecretArn = builder.Configuration["VAPID_SECRET_ARN"];
+var vapidPublicKey = builder.Configuration["VAPID_PUBLIC_KEY"] ?? "";
+var vapidSubject = builder.Configuration["VAPID_SUBJECT"] ?? $"mailto:{fromAddress}";
 
 builder.Services.AddSingleton<IAmazonDynamoDB>(_ =>
 {
@@ -48,6 +51,11 @@ builder.Services.AddSingleton(new EmailSender(
 // key locally so `dotnet run` works without any AWS access.
 var signingKey = await LoadSigningKeyAsync(sessionSecretArn);
 builder.Services.AddSingleton(new SessionTokens(signingKey));
+
+// Push is optional: without a key the endpoints answer 503 rather than 500, and
+// nothing else in the app changes.
+var pushSender = await LoadPushSenderAsync(vapidSecretArn, vapidPublicKey, vapidSubject);
+if (pushSender is not null) builder.Services.AddSingleton(pushSender);
 
 // The deployed app is same-origin behind CloudFront. This is only for `npm run dev`.
 builder.Services.AddCors(options =>
@@ -316,6 +324,68 @@ api.MapDelete("/savings/{id}", async (
     return Results.NoContent();
 });
 
+/* ---------- Push notifications ---------- */
+
+// The public key is not a secret: the browser needs it to create a subscription.
+api.MapGet("/push/key", (PushSender? push) =>
+    push is null
+        ? Results.Json(new ErrorResponse("Push är inte konfigurerat."), statusCode: 503)
+        : Results.Ok(new PushKeyResponse(push.PublicKey)));
+
+api.MapPut("/push", async (
+    PushSubscribeRequest body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
+
+    await s.PutPushSubscriptionAsync(
+        caller.HouseholdId,
+        new PushSubscription(caller.Member.Id, body.Endpoint, body.P256dh, body.Auth),
+        ct);
+    return Results.NoContent();
+});
+
+api.MapDelete("/push", async (
+    PushSubscribeRequest body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
+
+    await s.DeletePushSubscriptionAsync(caller.HouseholdId, caller.Member.Id, body.Endpoint, ct);
+    return Results.NoContent();
+});
+
+// Proves the whole path end to end, which is the only way to know push works on a
+// given device: permission, subscription, encryption and the service relaying it.
+api.MapPost("/push/test", async (
+    HttpContext ctx, BudgetStore s, SessionTokens t, PushSender? push, CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
+    if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
+    if (push is null)
+        return Results.Json(new ErrorResponse("Push är inte konfigurerat."), statusCode: 503);
+
+    var subscriptions = await s.ListPushSubscriptionsAsync(caller.HouseholdId, caller.Member.Id, ct);
+    if (subscriptions.Count == 0)
+        return Results.Json(new ErrorResponse("Ingen enhet är ansluten."), statusCode: 404);
+
+    var language = caller.Member.Language;
+    var message = Messages.PushTest(language);
+    var delivered = 0;
+    foreach (var subscription in subscriptions)
+    {
+        var result = await push.SendAsync(subscription, message, ct);
+        if (result == PushResult.Delivered) delivered++;
+        else if (result == PushResult.Expired)
+            await s.DeletePushSubscriptionAsync(
+                caller.HouseholdId, caller.Member.Id, subscription.Endpoint, ct);
+    }
+
+    return delivered > 0
+        ? Results.NoContent()
+        : Results.Json(new ErrorResponse("Notisen kunde inte skickas."), statusCode: 502);
+});
+
 api.MapPut("/costs/{id}", async (string id, RecurringCost body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
     await Write(ctx, s, t, ct, h => s.PutCostAsync(h, body with { Id = id }, ct)));
 
@@ -365,6 +435,17 @@ async Task<IResult> Write(
     if (!caller.HasHousehold) return Results.Unauthorized();
     await action(caller.HouseholdId);
     return Results.NoContent();
+}
+
+static async Task<PushSender?> LoadPushSenderAsync(string? secretArn, string publicKey, string subject)
+{
+    if (string.IsNullOrWhiteSpace(secretArn) || string.IsNullOrWhiteSpace(publicKey)) return null;
+
+    using var client = new AmazonSecretsManagerClient();
+    var response = await client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secretArn });
+    var key = System.Security.Cryptography.ECDsa.Create();
+    key.ImportPkcs8PrivateKey(Convert.FromBase64String(response.SecretString), out _);
+    return new PushSender(new HttpClient(), key, publicKey, subject);
 }
 
 static async Task<byte[]> LoadSigningKeyAsync(string? secretArn)

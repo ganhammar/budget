@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
@@ -202,6 +203,54 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
         {
             if (value is not null) list.Add(value);
         }
+    }
+
+    /* ---------- Push subscriptions ---------- */
+
+    /// <summary>
+    /// The endpoint is too long and too punctuated for a sort key, so it is hashed.
+    /// Same device subscribing twice therefore replaces rather than duplicates.
+    /// </summary>
+    private static string EndpointKey(string endpoint)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(endpoint));
+        return Convert.ToHexString(hash)[..16];
+    }
+
+    public Task PutPushSubscriptionAsync(
+        string householdId, PushSubscription subscription, CancellationToken ct) =>
+        Put(HouseholdKey(householdId),
+            $"PUSH#{subscription.MemberId}#{EndpointKey(subscription.Endpoint)}",
+            JsonSerializer.Serialize(subscription, AppJsonContext.Default.PushSubscription), ct);
+
+    public Task DeletePushSubscriptionAsync(
+        string householdId, string memberId, string endpoint, CancellationToken ct) =>
+        Delete(HouseholdKey(householdId), $"PUSH#{memberId}#{EndpointKey(endpoint)}", ct);
+
+    public async Task<List<PushSubscription>> ListPushSubscriptionsAsync(
+        string householdId, string memberId, CancellationToken ct)
+    {
+        var response = await client.QueryAsync(
+            new QueryRequest
+            {
+                TableName = tableName,
+                KeyConditionExpression = "pk = :pk AND begins_with(sk, :sk)",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":pk"] = S(HouseholdKey(householdId)),
+                    [":sk"] = S($"PUSH#{memberId}#"),
+                },
+            },
+            ct);
+
+        var found = new List<PushSubscription>();
+        foreach (var item in response.Items)
+        {
+            var value = JsonSerializer.Deserialize(
+                item["data"].S, AppJsonContext.Default.PushSubscription);
+            if (value is not null) found.Add(value);
+        }
+        return found;
     }
 
     /* ---------- Savings ---------- */
