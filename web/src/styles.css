@@ -184,6 +184,41 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Which scope you are editing. Reads like the bottom nav so it is obviously a
+   place-switcher rather than an action, but sits under a rule of its own. */
+.settings-nav {
+  display: flex;
+  gap: 22px;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.settings-nav a {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.settings-nav a.active {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.settings-nav svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+/* The first section under the switcher has its own rule already. */
+.settings-nav + .card {
+  border-top: 0;
+}
+
 /* ---------- Loading ---------- */
 
 .loading {

@@ -66,7 +66,10 @@ export function Overview() {
         {result.memberLines.length === 0 ? (
           <Empty text={t.noActiveMembers} />
         ) : (
-          result.memberLines.map((line) => {
+          // Your own block first: it is the one you came to read.
+          [...result.memberLines]
+            .sort((a, b) => Number(b.memberId === me.id) - Number(a.memberId === me.id))
+            .map((line) => {
             // Only your own block can carry this: another member's savings never
             // reach this client, so there is nothing to leak or to hide.
             const savings = line.memberId === me.id ? savingsTotal(budget, month) : 0;

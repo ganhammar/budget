@@ -8,6 +8,7 @@ import { OneOffCosts } from './ui/OneOffCosts';
 import { Loans } from './ui/Loans';
 import { Income } from './ui/Income';
 import { Household } from './ui/Household';
+import { Profile } from './ui/Profile';
 import { storedTheme, useTheme } from './settings';
 import { Loading } from './ui/Loading';
 import { useText, type Text } from './i18n';
@@ -54,8 +55,17 @@ export default function App() {
   if (!budget) return <Onboarding />;
 
   const tab = TABS.find((entry) => entry.key === hash);
-  const View = hash === 'household' ? Household : (tab?.View ?? Overview);
-  const title = hash === 'household' ? t.household : tab ? tabLabel(t, tab.key) : t.navOverview;
+  const firstName = me?.name.trim().split(/\s+/)[0] ?? t.profile;
+  const View =
+    hash === 'household' ? Household : hash === 'profile' ? Profile : (tab?.View ?? Overview);
+  const title =
+    hash === 'household'
+      ? t.household
+      : hash === 'profile'
+        ? firstName
+        : tab
+          ? tabLabel(t, tab.key)
+          : t.navOverview;
 
   return (
     <div className="app">
