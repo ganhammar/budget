@@ -68,7 +68,11 @@ jobs:
 
   deploy:
     needs: [api, web]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Dispatch deploys too, so a deploy can be re-run without an empty commit
+    # when a push event goes missing or a deploy needs repeating unchanged.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       id-token: write # required to request the OIDC token
