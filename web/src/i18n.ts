@@ -270,6 +270,11 @@ const sv = {
   changeChargeHint:
     'Belopp och betalare ändras från kostnadens meny, så att tidigare månader behåller det som gällde då.',
   appliesFromHintCost: 'Första månaden med det nya beloppet.',
+  changeAmortization: 'Ändra belopp',
+  currentAmortization: 'Belopp nu',
+  changeAmortizationHint:
+    'Beloppet ändras från amorteringens meny, så att tidigare månader behåller det som gällde då.',
+  appliesFromHintAmortization: 'Första månaden med det nya beloppet.',
   currentTerms: 'Ränta och betalare nu',
   changeTerms: 'Ändra ränta eller betalare',
   changeTermsHint:
@@ -591,6 +596,11 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   changeChargeHint:
     "Amount and payer are changed from the cost's menu, so earlier months keep what was in force then.",
   appliesFromHintCost: 'The first month on the new amount.',
+  changeAmortization: 'Change amount',
+  currentAmortization: 'Amount now',
+  changeAmortizationHint:
+    "The amount is changed from the amortization's menu, so earlier months keep what was in force then.",
+  appliesFromHintAmortization: 'The first month on the new amount.',
   currentTerms: 'Rate and payer now',
   changeTerms: 'Change rate or payer',
   changeTermsHint:

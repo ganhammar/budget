@@ -5,10 +5,12 @@ import {
   type AmortizationStream,
   type Loan,
   type LoanTerms,
+  type StreamTerms,
   type RateFixation,
 } from '../domain/types';
 import {
   calculateMonth,
+  streamAmountAt,
   termsAt,
   debtFreeMonth,
   debtOverTime,
@@ -55,6 +57,8 @@ export function Loans() {
   /** The loan whose action menu is open. */
   const [actionsFor, setActionsFor] = useState<Loan | null>(null);
   const [streamActions, setStreamActions] = useState<AmortizationStream | null>(null);
+  const [streamTermsFor, setStreamTermsFor] = useState<AmortizationStream | null>(null);
+  const [streamTermsDraft, setStreamTermsDraft] = useState<StreamTerms | null>(null);
   /** The loan whose terms are being changed, and the entry being written. */
   const [termsFor, setTermsFor] = useState<Loan | null>(null);
   const [termsDraft, setTermsDraft] = useState<LoanTerms | null>(null);
@@ -165,6 +169,40 @@ export function Loans() {
     }));
     setLoanDraft(null);
     setActionsFor(null);
+  }
+
+  function openStreamTerms(stream: AmortizationStream) {
+    setStreamTermsFor(stream);
+    setStreamTermsDraft({ from: nowMonth, amount: streamAmountAt(stream, nowMonth) });
+    setStreamActions(null);
+  }
+
+  function saveStreamTerms() {
+    if (!streamTermsFor || !streamTermsDraft) return;
+    const terms = [
+      ...(streamTermsFor.terms ?? []).filter((e) => e.from !== streamTermsDraft.from),
+      streamTermsDraft,
+    ].sort((a, b) => a.from.localeCompare(b.from));
+    update((b) => ({
+      ...b,
+      amortizationStreams: b.amortizationStreams.map((s) =>
+        s.id === streamTermsFor.id ? { ...s, terms } : s,
+      ),
+    }));
+    setStreamTermsFor(null);
+    setStreamTermsDraft(null);
+  }
+
+  function removeStreamTerms(from: string) {
+    if (!streamTermsFor) return;
+    const terms = (streamTermsFor.terms ?? []).filter((e) => e.from !== from);
+    update((b) => ({
+      ...b,
+      amortizationStreams: b.amortizationStreams.map((s) =>
+        s.id === streamTermsFor.id ? { ...s, terms } : s,
+      ),
+    }));
+    setStreamTermsFor({ ...streamTermsFor, terms });
   }
 
   function saveStream() {
@@ -363,7 +401,7 @@ export function Loans() {
                 .map((id) => budget.loans.find((l) => l.id === id)?.description)
                 .filter(Boolean)
                 .join(stream.mode === 'priority' ? ' → ' : ' + ')}`}
-              amount={sek(stream.amount)}
+              amount={sek(streamAmountAt(stream, nowMonth))}
               amountNote={t.perMonth}
               onClick={() => setStreamActions(stream)}
             />
@@ -504,12 +542,23 @@ export function Loans() {
             />
           </Field>
           <div className="field-pair">
-            <Field label={t.amountPerMonth}>
-              <AmountInput
-                value={streamDraft.amount || ''}
-                onChange={(v) => setStreamDraft({ ...streamDraft, amount: v })}
-              />
-            </Field>
+            {isNew ? (
+              <Field label={t.amountPerMonth}>
+                <AmountInput
+                  value={streamDraft.amount || ''}
+                  onChange={(v) => setStreamDraft({ ...streamDraft, amount: v })}
+                />
+              </Field>
+            ) : (
+              <div className="field">
+                <label>{t.currentAmortization}</label>
+                <div className="terms-current">
+                  <span>{sek(streamAmountAt(streamDraft, nowMonth))}</span>
+                  <span>{t.perMonth}</span>
+                </div>
+                <span className="hint">{t.changeAmortizationHint}</span>
+              </div>
+            )}
             <Field label={t.started}>
               <MonthInput
                 value={streamDraft.start}
@@ -622,6 +671,7 @@ export function Loans() {
                 setStreamActions(null);
               },
             },
+            { label: t.changeAmortization, onSelect: () => openStreamTerms(streamActions) },
             {
               label: t.remove,
               danger: true,
@@ -681,6 +731,51 @@ export function Loans() {
               {t.cancel}
             </button>
             <button className="btn" onClick={saveTerms}>
+              {t.save}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {streamTermsFor && streamTermsDraft && (
+        <Sheet title={t.changeAmortization} onClose={() => setStreamTermsFor(null)}>
+          <Field label={t.appliesFrom} hint={t.appliesFromHintAmortization}>
+            <MonthInput
+              value={streamTermsDraft.from}
+              onChange={(from) => setStreamTermsDraft({ ...streamTermsDraft, from })}
+            />
+          </Field>
+          <Field label={t.amountPerMonth}>
+            <AmountInput
+              value={streamTermsDraft.amount || ''}
+              onChange={(amount) => setStreamTermsDraft({ ...streamTermsDraft, amount })}
+            />
+          </Field>
+
+          {(streamTermsFor.terms ?? []).length > 0 && (
+            <div className="field">
+              <label>{t.termsHistory}</label>
+              <div className="list">
+                {[...(streamTermsFor.terms ?? [])]
+                  .sort((a, b) => b.from.localeCompare(a.from))
+                  .map((entry) => (
+                    <ListRow
+                      key={entry.from}
+                      title={formatMonth(entry.from)}
+                      amount={sek(entry.amount)}
+                      onClick={() => removeStreamTerms(entry.from)}
+                    />
+                  ))}
+              </div>
+              <span className="hint">{t.termsHistoryHint}</span>
+            </div>
+          )}
+
+          <div className="btn-row">
+            <button className="btn btn-secondary" onClick={() => setStreamTermsFor(null)}>
+              {t.cancel}
+            </button>
+            <button className="btn" onClick={saveStreamTerms}>
               {t.save}
             </button>
           </div>

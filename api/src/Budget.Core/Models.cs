@@ -94,13 +94,17 @@ public sealed record Loan(
     /// <summary>Month the loan was taken out; null means it predates the records.</summary>
     string? Started = null);
 
+/// <summary>What a stream pays from a month onwards; see the client's streamAmountAt.</summary>
+public sealed record StreamTerms(string From, decimal Amount);
+
 public sealed record AmortizationStream(
     string Id,
     string Name,
     decimal Amount,
     string Start,
     string Mode,
-    List<string> LoanIds);
+    List<string> LoanIds,
+    List<StreamTerms>? Terms = null);
 
 public sealed record AccountBalance(string Month, decimal Amount);
 

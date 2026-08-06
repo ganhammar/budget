@@ -6,7 +6,13 @@
  * it applies ROUNDUP to each loan's interest, inflating the total by 3.72 kr/month.
  */
 import type { Budget, RecurringCost } from '../src/domain/types';
-import { calculateMonth, effectiveRate, forecast, savingsTotal } from '../src/domain/engine';
+import {
+  calculateMonth,
+  debtAtStartOf,
+  effectiveRate,
+  forecast,
+  savingsTotal,
+} from '../src/domain/engine';
 import {
   canEditIncomeFor,
   incomeHistory,
@@ -259,6 +265,28 @@ for (const month of ['2025-06', '2026-06'] as const) {
     `${month}: interest ${present ? 'is charged' : 'is not charged'}`,
     line.interest > 0.005,
     month >= '2026-01',
+  );
+}
+
+console.log('\n— An amortization change applies forward only —');
+
+const amortChanged: Budget = {
+  ...sheetBudget,
+  amortizationStreams: sheetBudget.amortizationStreams.map((stream, i) =>
+    i === 0 ? { ...stream, terms: [{ from: '2026-09', amount: stream.amount * 2 }] } : stream,
+  ),
+};
+
+// Debt at a month is the walk up to it, so a later change must not move an earlier point.
+const debtAt = (b: Budget, month: string) =>
+  [...debtAtStartOf(b, month).values()].reduce((sum, d) => sum + d, 0);
+
+for (const month of ['2026-09', '2026-12'] as const) {
+  const moved = Math.abs(debtAt(amortChanged, month) - debtAt(sheetBudget, month)) > 0.01;
+  expect(
+    `${month}: debt ${moved ? 'reflects the larger amortization' : 'is untouched'}`,
+    moved,
+    month > '2026-09',
   );
 }
 

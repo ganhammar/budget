@@ -1,4 +1,13 @@
-import type { ActivePeriod, Budget, Loan, Month, OneOffCost, RecurringCost, Saving } from './types';
+import type {
+  ActivePeriod,
+  AmortizationStream,
+  Budget,
+  Loan,
+  Month,
+  OneOffCost,
+  RecurringCost,
+  Saving,
+} from './types';
 import type { Text } from '../i18n';
 import { activeMembers } from './types';
 import {
@@ -193,6 +202,18 @@ export function monthlyInterest(loan: Loan, debt: number, month: Month): number 
 /** Below this, a debt counts as settled. */
 const EPSILON = 0.005;
 
+/**
+ * What a stream pays in a month: the latest terms starting at or before it, else
+ * the amount it began with. Raising an amortization therefore changes the months
+ * from then on and leaves the debt curve behind it alone.
+ */
+export function streamAmountAt(stream: AmortizationStream, month: Month): number {
+  const applicable = (stream.terms ?? [])
+    .filter((entry) => entry.from <= month)
+    .sort((a, b) => a.from.localeCompare(b.from));
+  return applicable[applicable.length - 1]?.amount ?? stream.amount;
+}
+
 function applyAmortization(
   budget: Budget,
   debts: Map<string, number>,
@@ -206,8 +227,9 @@ function applyAmortization(
     const open = stream.loanIds.filter((loanId) => (debts.get(loanId) ?? 0) > EPSILON);
     if (open.length === 0) continue;
 
+    const budgeted = streamAmountAt(stream, month);
     if (stream.mode === 'parallel') {
-      const share = stream.amount / open.length;
+      const share = budgeted / open.length;
       for (const loanId of open) {
         const debt = debts.get(loanId) ?? 0;
         const part = Math.min(share, debt);
@@ -215,7 +237,7 @@ function applyAmortization(
         paid.set(loanId, (paid.get(loanId) ?? 0) + part);
       }
     } else {
-      let left = stream.amount;
+      let left = budgeted;
       for (const loanId of stream.loanIds) {
         if (left <= EPSILON) break;
         const debt = debts.get(loanId) ?? 0;

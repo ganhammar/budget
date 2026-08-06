@@ -176,13 +176,21 @@ export interface Loan {
  * rolls the whole amount to the next once one is cleared (the 5 000 that goes to
  * Framsida and then to the car loan).
  */
+/** What a stream pays from a month onwards, the same idea as LoanTerms. */
+export interface StreamTerms {
+  from: Month;
+  amount: number;
+}
+
 export interface AmortizationStream {
   id: string;
   name: string;
+  /** In force from `start` until the first terms entry. */
   amount: number;
   start: Month;
   mode: 'parallel' | 'priority';
   loanIds: string[];
+  terms?: StreamTerms[];
 }
 
 export interface AccountBalance {

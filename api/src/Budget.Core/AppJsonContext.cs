@@ -20,6 +20,7 @@ namespace Budget.Api;
 [JsonSerializable(typeof(Loan))]
 [JsonSerializable(typeof(LoanTerms))]
 [JsonSerializable(typeof(AmortizationStream))]
+[JsonSerializable(typeof(StreamTerms))]
 [JsonSerializable(typeof(IncomeEntry))]
 [JsonSerializable(typeof(AccountBalance))]
 [JsonSerializable(typeof(UserProfile))]
