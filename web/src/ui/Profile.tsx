@@ -30,7 +30,7 @@ export function Profile() {
     <>
       <Savings />
 
-      <Card title={t.account}>
+      <Card title={t.preferences}>
         <div style={{ marginBottom: 12 }}>
           <Note>
             {t.signedInAs} <strong>{signedInEmail}</strong> {t.signedInVia}
