@@ -51,6 +51,8 @@ export function Loans() {
   const { budget, update } = useBudget();
   const t = useText();
   const [loanDraft, setLoanDraft] = useState<Loan | null>(null);
+  /** The loan whose action menu is open. */
+  const [actionsFor, setActionsFor] = useState<Loan | null>(null);
   /** The loan whose terms are being changed, and the entry being written. */
   const [termsFor, setTermsFor] = useState<Loan | null>(null);
   const [termsDraft, setTermsDraft] = useState<LoanTerms | null>(null);
@@ -131,17 +133,17 @@ export function Loans() {
     setLoanDraft(null);
   }
 
-  function removeLoan() {
-    if (!loanDraft) return;
+  function removeLoan(loan: Loan) {
     update((b) => ({
       ...b,
-      loans: b.loans.filter((l) => l.id !== loanDraft.id),
+      loans: b.loans.filter((l) => l.id !== loan.id),
       amortizationStreams: b.amortizationStreams.map((s) => ({
         ...s,
-        loanIds: s.loanIds.filter((id) => id !== loanDraft.id),
+        loanIds: s.loanIds.filter((id) => id !== loan.id),
       })),
     }));
     setLoanDraft(null);
+    setActionsFor(null);
   }
 
   function saveStream() {
@@ -248,10 +250,7 @@ export function Loans() {
               }`}
               amount={sek(line.total)}
               amountNote={t.perMonth}
-              onClick={() => {
-                setLoanDraft({ ...line.loan });
-                setIsNew(false);
-              }}
+              onClick={() => setActionsFor(line.loan)}
             />
           ))}
         </div>
@@ -393,13 +392,6 @@ export function Loans() {
                 <span>{percent(termsAt(loanDraft, nowMonth).nominalRate)}</span>
                 <span>{memberName(termsAt(loanDraft, nowMonth).payerId) ?? t.joint}</span>
               </div>
-              <button
-                className="btn btn-small btn-secondary"
-                style={{ alignSelf: 'flex-start', marginTop: 10 }}
-                onClick={() => openTerms(loanDraft)}
-              >
-                {t.changeTerms}
-              </button>
               <span className="hint">{t.changeTermsHint}</span>
             </div>
           )}
@@ -415,11 +407,9 @@ export function Loans() {
           )}
 
           <div className="btn-row">
-            {!isNew && (
-              <button className="btn btn-danger" onClick={removeLoan}>
-                {t.remove}
-              </button>
-            )}
+            <button className="btn btn-secondary" onClick={() => setLoanDraft(null)}>
+              {t.cancel}
+            </button>
             <button className="btn" onClick={saveLoan}>
               {t.save}
             </button>
@@ -512,6 +502,40 @@ export function Loans() {
             )}
             <button className="btn" onClick={saveStream}>
               {t.save}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {actionsFor && (
+        <Sheet title={actionsFor.description} onClose={() => setActionsFor(null)}>
+          <div className="action-list">
+            <button
+              className="action"
+              onClick={() => {
+                setLoanDraft({ ...actionsFor });
+                setIsNew(false);
+                setActionsFor(null);
+              }}
+            >
+              {t.edit}
+            </button>
+            <button
+              className="action"
+              onClick={() => {
+                openTerms(actionsFor);
+                setActionsFor(null);
+              }}
+            >
+              {t.changeTerms}
+            </button>
+            <button
+              className="action danger"
+              onClick={() => {
+                if (confirm(t.confirmRemoveLoan(actionsFor.description))) removeLoan(actionsFor);
+              }}
+            >
+              {t.remove}
             </button>
           </div>
         </Sheet>
