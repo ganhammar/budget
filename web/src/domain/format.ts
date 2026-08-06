@@ -37,3 +37,8 @@ export function percent(fraction: number, decimals = 2): string {
     maximumFractionDigits: decimals,
   })} %`;
 }
+
+/** A plain rounded figure in the active locale, for axis ticks where "kr" would not fit. */
+export function figure(amount: number): string {
+  return Math.round(amount).toLocaleString(locale);
+}

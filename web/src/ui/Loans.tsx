@@ -15,9 +15,9 @@ import {
   effectiveRate,
   payoffMonths,
 } from '../domain/engine';
-import { percent, sek } from '../domain/format';
-import { currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
-import { DebtChart, DebtTable } from './DebtChart';
+import { figure, percent, sek } from '../domain/format';
+import { addMonths, currentMonth, formatMonth, formatMonthShort, monthsBetween } from '../domain/month';
+import { DebtTable, SeriesChart } from './DebtChart';
 import {
   ActionSheet,
   AmountInput,
@@ -63,6 +63,7 @@ export function Loans() {
   // Empty means all, so loans added later are included without touching this.
   const [hidden, setHidden] = useState<string[]>([]);
   const [showDebtTable, setShowDebtTable] = useState(false);
+  const [splitLoans, setSplitLoans] = useState(false);
 
   const nowMonth = currentMonth();
   const debtFree = debtFreeMonth(budget);
@@ -76,11 +77,19 @@ export function Loans() {
 
   // Run to payoff when it is known, so the rollover between loans is visible,
   // with a ceiling for the case where nothing is being amortized.
+  // Defaults to today through payoff, which is what the chart showed before the
+  // range was adjustable. Reaching back before amortization started is allowed:
+  // the engine simply reports each loan at its original debt.
+  const defaultTo = debtFree ?? addMonths(nowMonth, 120);
+  const [rangeFrom, setRangeFrom] = useState(nowMonth);
+  const [rangeTo, setRangeTo] = useState(defaultTo);
+
   const debtPoints = useMemo(() => {
     if (budget.loans.length === 0) return [];
-    const span = debtFree ? monthsBetween(nowMonth, debtFree) + 2 : 120;
-    return debtOverTime(budget, nowMonth, Math.max(12, Math.min(span, 480)));
-  }, [budget, nowMonth, debtFree]);
+    const span = monthsBetween(rangeFrom, rangeTo) + 1;
+    if (span < 2) return [];
+    return debtOverTime(budget, rangeFrom, Math.min(span, 600));
+  }, [budget, rangeFrom, rangeTo]);
 
   const result = calculateMonth(budget, nowMonth);
   const totalDebt = result.loanLines.reduce((sum, l) => sum + l.debt, 0);
@@ -184,18 +193,35 @@ export function Loans() {
         )}
       </Card>
 
-      {debtPoints.length > 1 && (
+      {budget.loans.length > 0 && (
         <Card
-          title={t.debtOverTime}
+          title={t.overTime}
           action={
-            <button
-              className="btn btn-small btn-secondary"
-              onClick={() => setShowDebtTable((v) => !v)}
-            >
-              {showDebtTable ? t.chart : t.table}
-            </button>
+            <span className="card-actions">
+              <button
+                className="btn btn-small btn-secondary"
+                onClick={() => setSplitLoans((v) => !v)}
+              >
+                {splitLoans ? t.combineLoans : t.splitLoans}
+              </button>
+              <button
+                className="btn btn-small btn-secondary"
+                onClick={() => setShowDebtTable((v) => !v)}
+              >
+                {showDebtTable ? t.chart : t.table}
+              </button>
+            </span>
           }
         >
+          <div className="field-pair">
+            <Field label={t.from}>
+              <MonthInput value={rangeFrom} onChange={setRangeFrom} />
+            </Field>
+            <Field label={t.to}>
+              <MonthInput value={rangeTo} onChange={setRangeTo} />
+            </Field>
+          </div>
+
           <MultiSelect
             label={t.showLoans}
             allLabel={t.allLoans}
@@ -209,15 +235,54 @@ export function Loans() {
 
           {shown.length === 0 ? (
             <Empty text={t.pickOneLoan} />
+          ) : debtPoints.length < 2 ? (
+            <Empty text={t.rangeTooShort} />
           ) : showDebtTable ? (
             <DebtTable points={debtPoints} loans={shown} />
           ) : (
-            <DebtChart
-              points={debtPoints}
-              loans={shown}
-              colorIndex={colorIndex}
-              payoff={payoff}
-            />
+            <>
+              <div className="group-label">{t.debtOverTime}</div>
+              <SeriesChart
+                points={debtPoints.map((p) => ({ month: p.month, values: p.debts }))}
+                loans={shown}
+                colorIndex={colorIndex}
+                split={splitLoans}
+                combinedLabel={t.total}
+                ariaLabel={t.debtChartLabel}
+                formatTick={(v) =>
+                  v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${Math.round(v / 1000)}k`
+                }
+                footer={
+                  <>
+                    <div className="legend">
+                      {shown.map((loan) => (
+                        <span className="legend-item" key={loan.id}>
+                          {loan.description}
+                          <em>
+                            {payoff[loan.id]
+                              ? formatMonthShort(payoff[loan.id]!)
+                              : t.notAmortized}
+                          </em>
+                        </span>
+                      ))}
+                    </div>
+                    <span className="hint">{t.pointForDebt}</span>
+                  </>
+                }
+              />
+
+              <div className="group-label">{t.interestCost}</div>
+              <SeriesChart
+                points={debtPoints.map((p) => ({ month: p.month, values: p.interest }))}
+                loans={shown}
+                colorIndex={colorIndex}
+                split={splitLoans}
+                combinedLabel={t.total}
+                ariaLabel={t.interestChartLabel}
+                formatTick={figure}
+                footer={<span className="hint">{t.pointForInterest}</span>}
+              />
+            </>
           )}
         </Card>
       )}

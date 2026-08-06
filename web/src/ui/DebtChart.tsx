@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useWidth, usePointerIndex } from './chart';
 import type { DebtPoint } from '../domain/engine';
 import type { Loan } from '../domain/types';
@@ -19,8 +20,14 @@ export function seriesColor(index: number): string {
   return `var(--ink-${(index % 6) + 1})`;
 }
 
+export interface SeriesPoint {
+  month: string;
+  /** One figure per loan id. */
+  values: Record<string, number>;
+}
+
 interface ChartProps {
-  points: DebtPoint[];
+  points: SeriesPoint[];
   /** Only the loans to draw. */
   loans: Loan[];
   /**
@@ -28,11 +35,32 @@ interface ChartProps {
    * one. Hiding a loan must not re-shade the ones that remain.
    */
   colorIndex: Record<string, number>;
-  /** Month each loan clears, or null where nothing amortizes it. */
-  payoff: Record<string, string | null>;
+  /** One line per loan, or a single line of their sum. */
+  split: boolean;
+  /** Name for the combined line, which has no loan of its own. */
+  combinedLabel: string;
+  /** Axis ticks; the y scale differs by an order of magnitude between series. */
+  formatTick: (value: number) => string;
+  ariaLabel: string;
+  /** Legend or hint shown under the chart when nothing is selected. */
+  footer: ReactNode;
 }
 
-export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
+/**
+ * One line per loan or one for the lot, over whatever months it is handed. Used
+ * for both debt and interest: the two differ only in the figures, the scale and
+ * what the footer says.
+ */
+export function SeriesChart({
+  points,
+  loans,
+  colorIndex,
+  split,
+  combinedLabel,
+  formatTick,
+  ariaLabel,
+  footer,
+}: ChartProps) {
   const { ref, width } = useWidth<HTMLDivElement>();
   const t = useText();
 
@@ -49,9 +77,28 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
 
   if (points.length < 2 || loans.length === 0) return null;
 
-  // Each loan on its own line against a shared scale, so a small loan is still a
+  const sumAt = (point: SeriesPoint) =>
+    loans.reduce((sum, loan) => sum + (point.values[loan.id] ?? 0), 0);
+
+  // Split draws each loan against a shared scale, so a small loan is still a
   // visible trajectory rather than a sliver of a stack.
-  const max = Math.max(1, ...points.flatMap((p) => loans.map((l) => p.debts[l.id] ?? 0)));
+  const lines = split
+    ? loans.map((loan) => ({
+        key: loan.id,
+        label: loan.description,
+        color: seriesColor(colorIndex[loan.id] ?? 0),
+        values: points.map((p) => p.values[loan.id] ?? 0),
+      }))
+    : [
+        {
+          key: 'combined',
+          label: combinedLabel,
+          color: seriesColor(0),
+          values: points.map(sumAt),
+        },
+      ];
+
+  const max = Math.max(1, ...lines.flatMap((line) => line.values));
 
   const x = (i: number) => MARGIN.left + (i * plotW) / (points.length - 1);
   const y = (v: number) => MARGIN.top + plotH - (v / max) * plotH;
@@ -59,17 +106,15 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
   const dotStep = Math.max(1, Math.ceil(points.length / Math.max(3, Math.floor(plotW / 34))));
   const labelStep = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotW / 46))));
 
-  const series = loans.map((loan) => {
-    const path = points
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(p.debts[loan.id] ?? 0)}`)
-      .join(' ');
-    const endValue = points[points.length - 1].debts[loan.id] ?? 0;
-    return { loan, path, endValue };
-  });
+  const series = lines.map((line) => ({
+    ...line,
+    path: line.values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i)},${y(v)}`).join(' '),
+    endValue: line.values[line.values.length - 1],
+  }));
 
   // Label the lines that still exist at the right edge, skipping any that would sit
-  // on top of one already placed. Loans that have cleared sit flat on zero, where a
-  // label would collide with the axis and say nothing the legend does not already.
+  // on top of one already placed. Lines that have fallen to zero sit on the axis,
+  // where a label would collide and say nothing the footer does not already.
   const placed: number[] = [];
   const labels = [...series]
     .filter((s) => s.endValue > 0.005)
@@ -84,7 +129,6 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
 
   const selected = active === null ? null : points[active];
   const shown = selected ?? points[0];
-  const total = loans.reduce((sum, l) => sum + (shown.debts[l.id] ?? 0), 0);
 
   return (
     <div ref={ref}>
@@ -95,50 +139,45 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
         viewBox={`0 0 ${w} ${HEIGHT}`}
         {...handlers}
         role="img"
-        aria-label={t.debtChartLabel}
+        aria-label={ariaLabel}
       >
         {[max, max / 2, 0].map((v) => (
           <g key={v}>
             <line className="gridline" x1={MARGIN.left} x2={w - MARGIN.right} y1={y(v)} y2={y(v)} />
             <text className="tick" x={MARGIN.left - 7} y={y(v) + 3} textAnchor="end">
-              {v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${Math.round(v / 1000)}k`}
+              {formatTick(v)}
             </text>
           </g>
         ))}
 
-        {series.map(({ loan, path }) => (
-          <path
-            key={loan.id}
-            className="line"
-            d={path}
-            style={{ stroke: seriesColor(colorIndex[loan.id] ?? 0) }}
-          />
+        {series.map(({ key, path, color }) => (
+          <path key={key} className="line" d={path} style={{ stroke: color }} />
         ))}
 
-        {series.map(({ loan }) =>
-          points.map((p, i) =>
+        {series.map(({ key, values, color }) =>
+          values.map((v, i) =>
             i % dotStep === 0 ? (
               <circle
-                key={`${loan.id}-${p.month}`}
+                key={`${key}-${i}`}
                 className="dot"
                 cx={x(i)}
-                cy={y(p.debts[loan.id] ?? 0)}
+                cy={y(v)}
                 r={2.2}
-                style={{ stroke: seriesColor(colorIndex[loan.id] ?? 0) }}
+                style={{ stroke: color }}
               />
             ) : null,
           ),
         )}
 
-        {labels.map(({ loan, ly }) => (
+        {labels.map(({ key, label, ly, color }) => (
           <text
-            key={loan.id}
+            key={key}
             className="series-label"
             x={w - MARGIN.right + 6}
             y={ly + 3}
-            style={{ fill: seriesColor(colorIndex[loan.id] ?? 0) }}
+            style={{ fill: color }}
           >
-            {loan.description}
+            {label}
           </text>
         ))}
 
@@ -159,14 +198,14 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
               y1={MARGIN.top}
               y2={MARGIN.top + plotH}
             />
-            {loans.map((loan) => (
+            {series.map(({ key, values, color }) => (
               <circle
-                key={loan.id}
+                key={key}
                 className="marker"
                 cx={x(active)}
-                cy={y(selected.debts[loan.id] ?? 0)}
+                cy={y(values[active])}
                 r={3.4}
-                style={{ fill: seriesColor(colorIndex[loan.id] ?? 0) }}
+                style={{ fill: color }}
               />
             ))}
           </>
@@ -177,28 +216,21 @@ export function DebtChart({ points, loans, colorIndex, payoff }: ChartProps) {
       <div className="chart-detail">
         <div className="detail-layer" data-hidden={selected === null} aria-hidden={selected === null}>
           <div className="tooltip-month">{formatMonth(shown.month)}</div>
+          {/* The breakdown is worth having even when the chart draws one line. */}
           {loans.map((loan) => (
             <div className="tooltip-row" key={loan.id}>
               <span>{loan.description}</span>
-              <span>{sek(shown.debts[loan.id] ?? 0)}</span>
+              <span>{sek(shown.values[loan.id] ?? 0)}</span>
             </div>
           ))}
           <div className="tooltip-row total">
             <span>{t.total}</span>
-            <strong>{sek(total)}</strong>
+            <strong>{sek(sumAt(shown))}</strong>
           </div>
         </div>
 
         <div className="detail-layer" data-hidden={selected !== null} aria-hidden={selected !== null}>
-          <div className="legend">
-            {loans.map((loan) => (
-              <span className="legend-item" key={loan.id}>
-                {loan.description}
-                <em>{payoff[loan.id] ? formatMonthShort(payoff[loan.id]!) : t.notAmortized}</em>
-              </span>
-            ))}
-          </div>
-          <span className="hint">{t.pointForDebt}</span>
+          {footer}
         </div>
       </div>
     </div>
