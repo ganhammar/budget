@@ -20,6 +20,7 @@ const sv = {
   navIncome: 'Inkomst',
   household: 'Hushåll',
   profile: 'Profil',
+  settings: 'Inställningar',
   loadingBudget: 'Hämtar budgeten…',
 
   // Common actions
@@ -354,6 +355,7 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   navIncome: 'Income',
   household: 'Household',
   profile: 'Profile',
+  settings: 'Settings',
   loadingBudget: 'Loading the budget…',
 
   save: 'Save',

@@ -2,7 +2,6 @@ import { useStore, useBudget } from '../store/store';
 import type { Language, ThemeChoice } from '../domain/types';
 import { defaultLanguage, rememberLanguage } from '../settings';
 import { Card, Field, Note } from './components';
-import { SettingsNav } from './SettingsNav';
 import { Savings } from './Savings';
 import { useText } from '../i18n';
 
@@ -29,8 +28,6 @@ export function Profile() {
 
   return (
     <>
-      <SettingsNav active="profile" />
-
       <Savings />
 
       <Card title={t.account}>

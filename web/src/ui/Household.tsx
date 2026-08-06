@@ -4,7 +4,6 @@ import type { Member, Role } from '../domain/types';
 import { sek } from '../domain/format';
 import { Card, Field, ListRow, Note, Sheet } from './components';
 import { api } from '../api/client';
-import { SettingsNav } from './SettingsNav';
 import { useText } from '../i18n';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,8 +99,6 @@ export function Household() {
 
   return (
     <>
-      <SettingsNav active="household" />
-
       <Card
         title={budget.household.name}
         action={

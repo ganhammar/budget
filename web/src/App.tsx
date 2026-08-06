@@ -7,8 +7,7 @@ import { RecurringCosts } from './ui/RecurringCosts';
 import { OneOffCosts } from './ui/OneOffCosts';
 import { Loans } from './ui/Loans';
 import { Income } from './ui/Income';
-import { Household } from './ui/Household';
-import { Profile } from './ui/Profile';
+import { Settings } from './ui/Settings';
 import { storedTheme, useTheme } from './settings';
 import { Loading } from './ui/Loading';
 import { useText, type Text } from './i18n';
@@ -55,23 +54,25 @@ export default function App() {
   if (!budget) return <Onboarding />;
 
   const tab = TABS.find((entry) => entry.key === hash);
-  const firstName = me?.name.trim().split(/\s+/)[0] ?? t.profile;
-  const View =
-    hash === 'household' ? Household : hash === 'profile' ? Profile : (tab?.View ?? Overview);
-  const title =
-    hash === 'household'
-      ? t.household
-      : hash === 'profile'
-        ? firstName
-        : tab
-          ? tabLabel(t, tab.key)
-          : t.navOverview;
+  const View = hash === 'settings' ? Settings : (tab?.View ?? Overview);
+  const title = hash === 'settings' ? t.settings : tab ? tabLabel(t, tab.key) : t.navOverview;
 
   return (
     <div className="app">
       <header className="topbar">
         <h1>{title}</h1>
-        <a href="#household">{budget.household.name} ›</a>
+        <a href="#settings" className="cog" aria-label={t.settings}>
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path
+              d="M18.49,8.65 L18.49,11.35 L16.22,11.49 L15.46,13.34 L16.96,15.05 L15.05,16.96 L13.34,15.46 L11.49,16.22 L11.35,18.49 L8.65,18.49 L8.51,16.22 L6.66,15.46 L4.95,16.96 L3.04,15.05 L4.54,13.34 L3.78,11.49 L1.51,11.35 L1.51,8.65 L3.78,8.51 L4.54,6.66 L3.04,4.95 L4.95,3.04 L6.66,4.54 L8.51,3.78 L8.65,1.51 L11.35,1.51 L11.49,3.78 L13.34,4.54 L15.05,3.04 L16.96,4.95 L15.46,6.66 L16.22,8.51 Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinejoin="round"
+            />
+            <circle cx="10" cy="10" r="2.7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          </svg>
+        </a>
       </header>
 
       <main className="content">

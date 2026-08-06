@@ -184,39 +184,48 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Which scope you are editing. Reads like the bottom nav so it is obviously a
-   place-switcher rather than an action, but sits under a rule of its own. */
-.settings-nav {
-  display: flex;
-  gap: 22px;
-  padding: 16px 0 12px;
-  border-bottom: 1px solid var(--rule-strong);
-}
-
-.settings-nav a {
+/*
+ * Scope marker for a run of settings. Both halves live on one page, so each opens
+ * with its own heading: the icon says shared or personal at a glance, the label
+ * names it. Heavier than a card heading because it governs everything below it.
+ */
+.settings-section {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  margin-top: 26px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--rule-strong);
   font-family: var(--serif);
-  font-size: 14px;
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.settings-nav a.active {
-  color: var(--ink);
+  font-size: 15px;
   font-weight: 600;
 }
 
-.settings-nav svg {
-  width: 15px;
-  height: 15px;
+.settings-section:first-child {
+  margin-top: 14px;
+}
+
+.settings-section svg {
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
 }
 
-/* The first section under the switcher has its own rule already. */
-.settings-nav + .card {
+/* The section rule already separates it; the first card below must not add another. */
+.settings-section + .card {
   border-top: 0;
+  padding-top: 18px;
+}
+
+.topbar .cog {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.topbar .cog svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* ---------- Loading ---------- */
