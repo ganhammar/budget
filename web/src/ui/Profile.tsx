@@ -31,12 +31,6 @@ export function Profile() {
       <Savings />
 
       <Card title={t.preferences}>
-        <div style={{ marginBottom: 12 }}>
-          <Note>
-            {t.signedInAs} <strong>{signedInEmail}</strong> {t.signedInVia}
-          </Note>
-        </div>
-
         <Field label={t.language}>
           <select
             value={me.language ?? defaultLanguage()}
@@ -58,10 +52,18 @@ export function Profile() {
           </select>
         </Field>
 
+      </Card>
+
+      {/* Who you are signed in as and how to stop: an end-of-page action rather
+          than a preference, so it sits outside the card that names them. */}
+      <div className="account-footer">
+        <Note>
+          {t.signedInAs} <strong>{signedInEmail}</strong> {t.signedInVia}
+        </Note>
         <button className="btn btn-secondary" onClick={() => void signOut()}>
           {t.signOut}
         </button>
-      </Card>
+      </div>
     </>
   );
 }
