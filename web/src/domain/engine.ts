@@ -140,8 +140,21 @@ export function effectiveRate(nominal: number): number {
   return Math.pow(1 + nominal / 12, 12) - 1;
 }
 
-export function monthlyInterest(loan: Loan, debt: number): number {
-  return (debt * loan.nominalRate) / 12;
+/**
+ * The rate and payer in force for a month: the latest terms starting at or before
+ * it, else the loan's own fields, which is what every loan recorded before terms
+ * existed carries.
+ */
+export function termsAt(loan: Loan, month: Month): { nominalRate: number; payerId?: string } {
+  const applicable = (loan.terms ?? [])
+    .filter((t) => t.from <= month)
+    .sort((a, b) => a.from.localeCompare(b.from));
+  const current = applicable[applicable.length - 1];
+  return current ?? { nominalRate: loan.nominalRate, payerId: loan.payerId };
+}
+
+export function monthlyInterest(loan: Loan, debt: number, month: Month): number {
+  return (debt * termsAt(loan, month).nominalRate) / 12;
 }
 
 /** Below this, a debt counts as settled. */
@@ -304,6 +317,8 @@ export interface LoanLine {
   interest: number;
   amortization: number;
   total: number;
+  /** Payer in force for the month, which may differ from the loan's current one. */
+  payerId?: string;
 }
 
 export interface MemberLine {
@@ -336,8 +351,10 @@ export interface MonthResult {
 function calculate(budget: Budget, month: Month, debts: Map<string, number>): MonthResult {
   const loanLines: LoanLine[] = budget.loans.map((loan) => {
     const debt = debts.get(loan.id) ?? 0;
-    const interest = monthlyInterest(loan, debt);
-    return { loan, debt, interest, amortization: 0, total: interest };
+    const interest = monthlyInterest(loan, debt, month);
+    // The payer is resolved per month too, so a loan that changed hands is charged
+    // to whoever was carrying it at the time.
+    return { loan, debt, interest, amortization: 0, total: interest, payerId: termsAt(loan, month).payerId };
   });
 
   // Amortization for this month is computed on a copy so the caller's debts stay put.
@@ -366,7 +383,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
         .filter((c) => c.payerId === member.id)
         .reduce((sum, c) => sum + monthlyAmount(c), 0) +
       activeOneOffs.filter((c) => c.payerId === member.id).reduce((s, c) => s + monthlyShare(c), 0) +
-      loanLines.filter((l) => l.loan.payerId === member.id).reduce((s, l) => s + l.total, 0);
+      loanLines.filter((l) => l.payerId === member.id).reduce((s, l) => s + l.total, 0);
     const toTransfer = income - paidDirectly - surplusPerMember;
     return {
       memberId: member.id,
@@ -394,7 +411,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
     outflowItems.push({ label: cost.description, amount: cost.total, oneOff: true });
   }
   for (const line of loanLines) {
-    if (line.loan.payerId || line.total <= 0) continue;
+    if (line.payerId || line.total <= 0) continue;
     outflowItems.push({ label: line.loan.description, amount: line.total });
   }
 

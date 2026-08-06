@@ -146,6 +146,17 @@ body {
   display: none;
 }
 
+/* The values in force, shown rather than edited. */
+.terms-current {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 10px;
+  background: var(--wash);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- Loading ---------- */
 
 .loading {

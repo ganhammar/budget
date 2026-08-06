@@ -238,6 +238,14 @@ const sv = {
   loanPlaceholder: 't.ex. Huslån del 1',
   originalDebt: 'Ursprunglig skuld',
   nominalRate: 'Nominell ränta (%)',
+  currentTerms: 'Ränta och betalare nu',
+  changeTerms: 'Ändra ränta eller betalare',
+  changeTermsHint:
+    'Ändringen gäller från en månad och framåt. Tidigare månader behåller det som gällde då.',
+  appliesFrom: 'Gäller från',
+  appliesFromHint: 'Första månaden med den nya räntan.',
+  termsHistory: 'Tidigare ändringar',
+  termsHistoryHint: 'Tryck på en rad för att ta bort den.',
   rateFixation: 'Räntebindning',
   resetDate: 'Villkorsändringsdag',
   effectiveNote: (nominal: string, effective: string) =>
@@ -517,6 +525,14 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   loanPlaceholder: 'e.g. Mortgage part 1',
   originalDebt: 'Original debt',
   nominalRate: 'Nominal rate (%)',
+  currentTerms: 'Rate and payer now',
+  changeTerms: 'Change rate or payer',
+  changeTermsHint:
+    'The change applies from a month onwards. Earlier months keep what was in force then.',
+  appliesFrom: 'Applies from',
+  appliesFromHint: 'The first month on the new rate.',
+  termsHistory: 'Previous changes',
+  termsHistoryHint: 'Tap a row to remove it.',
   rateFixation: 'Rate fixation',
   resetDate: 'Reset date',
   effectiveNote: (nominal: string, effective: string) =>

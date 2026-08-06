@@ -105,16 +105,30 @@ export type RateFixation = 'floating3m' | '1y' | '2y' | '3y' | '5y' | '10y';
 
 export const RATE_FIXATIONS: RateFixation[] = ['floating3m', '1y', '2y', '3y', '5y', '10y'];
 
+/**
+ * What a loan costs and who pays it, from a given month onwards. Editing a loan
+ * corrects what it is and applies to every month; adding terms records that
+ * something changed on a date, so earlier months keep what they had.
+ */
+export interface LoanTerms {
+  from: Month;
+  /** Nominal annual rate as a fraction, e.g. 0.026 for 2.6%. */
+  nominalRate: number;
+  payerId?: string;
+}
+
 export interface Loan {
   id: string;
   description: string;
   originalDebt: number;
-  /** Nominal annual rate as a fraction, e.g. 0.026 for 2.6%. */
+  /** In force before the first terms entry, and for loans that have none. */
   nominalRate: number;
   fixation: RateFixation;
   /** Date the fixed term is renegotiated (villkorsändringsdag). */
   resetDate?: Month;
   payerId?: string;
+  /** Newest last is not assumed; lookups sort. */
+  terms?: LoanTerms[];
 }
 
 /**

@@ -1,8 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useBudget, newId } from '../store/store';
-import { RATE_FIXATIONS, type AmortizationStream, type Loan, type RateFixation } from '../domain/types';
+import {
+  RATE_FIXATIONS,
+  type AmortizationStream,
+  type Loan,
+  type LoanTerms,
+  type RateFixation,
+} from '../domain/types';
 import {
   calculateMonth,
+  termsAt,
   debtFreeMonth,
   debtOverTime,
   effectiveRate,
@@ -44,6 +51,9 @@ export function Loans() {
   const { budget, update } = useBudget();
   const t = useText();
   const [loanDraft, setLoanDraft] = useState<Loan | null>(null);
+  /** The loan whose terms are being changed, and the entry being written. */
+  const [termsFor, setTermsFor] = useState<Loan | null>(null);
+  const [termsDraft, setTermsDraft] = useState<LoanTerms | null>(null);
   const [streamDraft, setStreamDraft] = useState<AmortizationStream | null>(null);
   const [isNew, setIsNew] = useState(false);
   // Empty means all, so loans added later are included without touching this.
@@ -74,6 +84,41 @@ export function Loans() {
   const totalAmortization = result.loanLines.reduce((sum, l) => sum + l.amortization, 0);
 
   const memberName = (id?: string) => budget.members.find((m) => m.id === id)?.name;
+
+  /** Pre-filled with what is in force, so an unchanged field records the same value. */
+  function openTerms(loan: Loan) {
+    const current = termsAt(loan, nowMonth);
+    setTermsFor(loan);
+    setTermsDraft({ from: nowMonth, nominalRate: current.nominalRate, payerId: current.payerId });
+  }
+
+  /** One entry per month: saving twice for the same month corrects it rather than stacking. */
+  function saveTerms() {
+    if (!termsFor || !termsDraft) return;
+    const terms = [
+      ...(termsFor.terms ?? []).filter((entry) => entry.from !== termsDraft.from),
+      termsDraft,
+    ].sort((a, b) => a.from.localeCompare(b.from));
+
+    update((b) => ({
+      ...b,
+      loans: b.loans.map((l) => (l.id === termsFor.id ? { ...l, terms } : l)),
+    }));
+    setLoanDraft((draft) => (draft && draft.id === termsFor.id ? { ...draft, terms } : draft));
+    setTermsFor(null);
+    setTermsDraft(null);
+  }
+
+  function removeTerms(from: string) {
+    if (!termsFor) return;
+    const terms = (termsFor.terms ?? []).filter((entry) => entry.from !== from);
+    update((b) => ({
+      ...b,
+      loans: b.loans.map((l) => (l.id === termsFor.id ? { ...l, terms } : l)),
+    }));
+    setTermsFor({ ...termsFor, terms });
+    setLoanDraft((draft) => (draft && draft.id === termsFor.id ? { ...draft, terms } : draft));
+  }
 
   function saveLoan() {
     if (!loanDraft || !loanDraft.description.trim()) return;
@@ -193,8 +238,8 @@ export function Loans() {
             <ListRow
               key={line.loan.id}
               title={line.loan.description}
-              badge={memberName(line.loan.payerId)}
-              subtitle={`${sek(line.debt)} · ${percent(line.loan.nominalRate)} ${t.nominalShort} · ${t.interest} ${sek(line.interest)}${
+              badge={memberName(line.payerId)}
+              subtitle={`${sek(line.debt)} · ${percent(termsAt(line.loan, nowMonth).nominalRate)} ${t.nominalShort} · ${t.interest} ${sek(line.interest)}${
                 line.amortization > 0 ? ` · ${t.amortizationShort} ${sek(line.amortization)}` : ''
               } · ${
                 payoff[line.loan.id]
@@ -273,48 +318,98 @@ export function Loans() {
                 onChange={(v) => setLoanDraft({ ...loanDraft, originalDebt: v })}
               />
             </Field>
-            <Field label={t.nominalRate}>
-              <AmountInput
-                step={0.01}
-                value={loanDraft.nominalRate ? Number((loanDraft.nominalRate * 100).toFixed(4)) : ''}
-                onChange={(v) => setLoanDraft({ ...loanDraft, nominalRate: v / 100 })}
-              />
-            </Field>
+            {isNew ? (
+              <Field label={t.nominalRate}>
+                <AmountInput
+                  step={0.01}
+                  value={
+                    loanDraft.nominalRate ? Number((loanDraft.nominalRate * 100).toFixed(4)) : ''
+                  }
+                  onChange={(v) => setLoanDraft({ ...loanDraft, nominalRate: Number((v / 100).toFixed(6)) })}
+                />
+              </Field>
+            ) : (
+              <Field label={t.rateFixation}>
+                <select
+                  value={loanDraft.fixation}
+                  onChange={(e) =>
+                    setLoanDraft({ ...loanDraft, fixation: e.target.value as RateFixation })
+                  }
+                >
+                  {RATE_FIXATIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {fixationLabel(t, value)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
           </div>
-          <div className="field-pair">
-            <Field label={t.rateFixation}>
-              <select
-                value={loanDraft.fixation}
-                onChange={(e) =>
-                  setLoanDraft({ ...loanDraft, fixation: e.target.value as RateFixation })
-                }
-              >
-                {RATE_FIXATIONS.map((value) => (
-                  <option key={value} value={value}>
-                    {fixationLabel(t, value)}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          {isNew ? (
+            <div className="field-pair">
+              <Field label={t.rateFixation}>
+                <select
+                  value={loanDraft.fixation}
+                  onChange={(e) =>
+                    setLoanDraft({ ...loanDraft, fixation: e.target.value as RateFixation })
+                  }
+                >
+                  {RATE_FIXATIONS.map((value) => (
+                    <option key={value} value={value}>
+                      {fixationLabel(t, value)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={t.resetDate}>
+                <MonthInput
+                  value={loanDraft.resetDate ?? ''}
+                  onChange={(v) => setLoanDraft({ ...loanDraft, resetDate: v || undefined })}
+                />
+              </Field>
+            </div>
+          ) : (
             <Field label={t.resetDate}>
               <MonthInput
                 value={loanDraft.resetDate ?? ''}
                 onChange={(v) => setLoanDraft({ ...loanDraft, resetDate: v || undefined })}
               />
             </Field>
-          </div>
-          <Field label={t.paidBy}>
-            <PayerSelect
-              members={budget.members}
-              value={loanDraft.payerId}
-              onChange={(payerId) => setLoanDraft({ ...loanDraft, payerId })}
-            />
-          </Field>
+          )}
 
-          {loanDraft.nominalRate > 0 && (
+          {isNew ? (
+            <Field label={t.paidBy}>
+              <PayerSelect
+                members={budget.members}
+                value={loanDraft.payerId}
+                onChange={(payerId) => setLoanDraft({ ...loanDraft, payerId })}
+              />
+            </Field>
+          ) : (
+            /* Read-only on purpose: overwriting these would rewrite every past month. */
+            <div className="field">
+              <label>{t.currentTerms}</label>
+              <div className="terms-current">
+                <span>{percent(termsAt(loanDraft, nowMonth).nominalRate)}</span>
+                <span>{memberName(termsAt(loanDraft, nowMonth).payerId) ?? t.joint}</span>
+              </div>
+              <button
+                className="btn btn-small btn-secondary"
+                style={{ alignSelf: 'flex-start', marginTop: 10 }}
+                onClick={() => openTerms(loanDraft)}
+              >
+                {t.changeTerms}
+              </button>
+              <span className="hint">{t.changeTermsHint}</span>
+            </div>
+          )}
+
+          {termsAt(loanDraft, nowMonth).nominalRate > 0 && (
             <Note>
-              {t.effectivePrefix(percent(loanDraft.nominalRate))}{' '}
-              <strong>{t.effectiveBold(percent(effectiveRate(loanDraft.nominalRate)))}</strong>
+              {t.effectivePrefix(percent(termsAt(loanDraft, nowMonth).nominalRate))}{' '}
+              <strong>
+                {t.effectiveBold(percent(effectiveRate(termsAt(loanDraft, nowMonth).nominalRate)))}
+              </strong>
               {t.effectiveSuffix}
             </Note>
           )}
@@ -416,6 +511,60 @@ export function Loans() {
               </button>
             )}
             <button className="btn" onClick={saveStream}>
+              {t.save}
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {termsFor && termsDraft && (
+        <Sheet title={t.changeTerms} onClose={() => setTermsFor(null)}>
+          <Field label={t.appliesFrom} hint={t.appliesFromHint}>
+            <MonthInput
+              value={termsDraft.from}
+              onChange={(from) => setTermsDraft({ ...termsDraft, from })}
+            />
+          </Field>
+          <Field label={t.nominalRate}>
+            <AmountInput
+              step={0.01}
+              value={termsDraft.nominalRate ? Number((termsDraft.nominalRate * 100).toFixed(4)) : ''}
+              onChange={(v) => setTermsDraft({ ...termsDraft, nominalRate: Number((v / 100).toFixed(6)) })}
+            />
+          </Field>
+          <Field label={t.paidBy}>
+            <PayerSelect
+              members={budget.members}
+              value={termsDraft.payerId}
+              onChange={(payerId) => setTermsDraft({ ...termsDraft, payerId })}
+            />
+          </Field>
+
+          {(termsFor.terms ?? []).length > 0 && (
+            <div className="field">
+              <label>{t.termsHistory}</label>
+              <div className="list">
+                {[...(termsFor.terms ?? [])]
+                  .sort((a, b) => b.from.localeCompare(a.from))
+                  .map((entry) => (
+                    <ListRow
+                      key={entry.from}
+                      title={formatMonth(entry.from)}
+                      subtitle={memberName(entry.payerId) ?? t.joint}
+                      amount={percent(entry.nominalRate)}
+                      onClick={() => removeTerms(entry.from)}
+                    />
+                  ))}
+              </div>
+              <span className="hint">{t.termsHistoryHint}</span>
+            </div>
+          )}
+
+          <div className="btn-row">
+            <button className="btn btn-secondary" onClick={() => setTermsFor(null)}>
+              {t.cancel}
+            </button>
+            <button className="btn" onClick={saveTerms}>
               {t.save}
             </button>
           </div>

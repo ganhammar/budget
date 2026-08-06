@@ -59,6 +59,9 @@ public sealed record OneOffCost(
     string End,
     string? PayerId);
 
+/// <summary>Rate and payer from a month onwards; see the client's termsAt.</summary>
+public sealed record LoanTerms(string From, decimal NominalRate, string? PayerId);
+
 public sealed record Loan(
     string Id,
     string Description,
@@ -66,7 +69,8 @@ public sealed record Loan(
     decimal NominalRate,
     string Fixation,
     string? ResetDate,
-    string? PayerId);
+    string? PayerId,
+    List<LoanTerms>? Terms = null);
 
 public sealed record AmortizationStream(
     string Id,

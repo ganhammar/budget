@@ -15,6 +15,7 @@ namespace Budget.Api;
 [JsonSerializable(typeof(ActivePeriod))]
 [JsonSerializable(typeof(OneOffCost))]
 [JsonSerializable(typeof(Loan))]
+[JsonSerializable(typeof(LoanTerms))]
 [JsonSerializable(typeof(AmortizationStream))]
 [JsonSerializable(typeof(IncomeEntry))]
 [JsonSerializable(typeof(AccountBalance))]

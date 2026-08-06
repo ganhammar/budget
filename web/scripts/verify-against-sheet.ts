@@ -167,6 +167,31 @@ for (const point of forecast(withPurchase, 5)) {
   );
 }
 
+/* ---------- Dated loan terms ---------- */
+
+console.log('\n— A rate change applies forward only —');
+
+const rateChanged: Budget = {
+  ...sheetBudget,
+  loans: sheetBudget.loans.map((loan) =>
+    loan.id === sheetBudget.loans[0].id
+      ? { ...loan, terms: [{ from: '2026-09', nominalRate: 0.036 }] }
+      : loan,
+  ),
+};
+
+for (const month of ['2026-08', '2026-09'] as const) {
+  const before = calculateMonth(sheetBudget, month).loanLines[0].interest;
+  const after = calculateMonth(rateChanged, month).loanLines[0].interest;
+  const shouldMove = month >= '2026-09';
+  const moved = Math.abs(after - before) > 0.01;
+  expect(
+    `${month}: interest ${shouldMove ? 'follows the new rate' : 'is untouched by a later change'}`,
+    moved,
+    shouldMove,
+  );
+}
+
 /* ---------- Monthly income prompt ---------- */
 
 function expect(label: string, actual: boolean, want: boolean) {
