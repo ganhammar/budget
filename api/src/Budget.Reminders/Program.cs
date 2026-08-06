@@ -88,19 +88,23 @@ public static class Program
 
             foreach (var member in IncomeRules.AwaitingIncome(budget, month))
             {
-                var (subject, body) = Messages.IncomeReminder(
-                    member.Name, month, budget.Household.Name, email.AppUrl, input.Final,
-                    member.Language);
+                // Absent means on: members who predate the setting still get the mail.
+                if (member.EmailReminders != false)
+                {
+                    var (subject, body) = Messages.IncomeReminder(
+                        member.Name, month, budget.Household.Name, email.AppUrl, input.Final,
+                        member.Language);
 
-                try
-                {
-                    await email.SendAsync(member.Email, subject, body, ct);
-                    sent++;
-                }
-                catch (Exception ex)
-                {
-                    // One bad address must not stop the others being reminded.
-                    context.Logger.LogError($"Could not email {member.Email}: {ex.Message}");
+                    try
+                    {
+                        await email.SendAsync(member.Email, subject, body, ct);
+                        sent++;
+                    }
+                    catch (Exception ex)
+                    {
+                        // One bad address must not stop the others being reminded.
+                        context.Logger.LogError($"Could not email {member.Email}: {ex.Message}");
+                    }
                 }
 
                 // Same nudge to whatever devices they have connected. A failure here

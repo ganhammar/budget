@@ -20,7 +20,8 @@ public sealed record Member(
     string Status,
     decimal BaselineIncome,
     string? Language = null,
-    string? Theme = null);
+    string? Theme = null,
+    bool? EmailReminders = null);
 
 public sealed record IncomeEntry(string MemberId, string Month, decimal Amount, string? EnteredById);
 

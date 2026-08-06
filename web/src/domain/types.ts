@@ -30,6 +30,8 @@ export interface Member {
   /** Absent means the defaults: the browser's language and the system theme. */
   language?: Language;
   theme?: ThemeChoice;
+  /** Absent means on, so nobody is silently opted out of the income reminder. */
+  emailReminders?: boolean;
 }
 
 /**

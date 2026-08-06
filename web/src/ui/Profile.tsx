@@ -73,14 +73,19 @@ export function Profile() {
 }
 
 /**
- * The state shown is the browser's own subscription, read on mount rather than
- * remembered: permission can be revoked and site data cleared without the app
- * hearing about it, and a toggle that claims to be on when nothing will arrive is
- * worse than no toggle.
+ * How the income reminder reaches you, one toggle per channel.
+ *
+ * The two are stored differently and that is deliberate. Email is a preference on
+ * the member, because the address exists whether or not you want to hear from it.
+ * Push is the browser subscription itself: permission can be revoked and site data
+ * cleared without the app hearing about it, so the toggle reads the subscription on
+ * mount rather than a remembered flag. A switch that claims to be on when nothing
+ * will arrive is worse than no switch.
  */
 function Notifications() {
+  const { me, update } = useBudget();
   const t = useText();
-  const [enabled, setEnabled] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -88,16 +93,23 @@ function Notifications() {
   const install = !supported && needsInstall();
 
   useEffect(() => {
-    void currentSubscription().then((s) => setEnabled(s !== null));
+    void currentSubscription().then((s) => setSubscribed(s !== null));
   }, []);
 
-  async function toggle(next: boolean) {
+  function setEmailReminders(emailReminders: boolean) {
+    update((b) => ({
+      ...b,
+      members: b.members.map((m) => (m.id === me.id ? { ...m, emailReminders } : m)),
+    }));
+  }
+
+  async function togglePush(next: boolean) {
     setBusy(true);
     setMessage(null);
     try {
       if (next) await enablePush();
       else await disablePush();
-      setEnabled(next);
+      setSubscribed(next);
     } catch (error) {
       setMessage(
         error instanceof Error && error.message === 'denied'
@@ -122,27 +134,32 @@ function Notifications() {
     }
   }
 
-  if (!supported) {
-    return (
-      <Field label={t.notifications}>
-        <Note>{install ? t.notificationsInstall : t.notificationsUnsupported}</Note>
-      </Field>
-    );
-  }
-
   return (
     <Field label={t.notifications}>
       <label className="toggle">
         <input
           type="checkbox"
-          checked={enabled}
-          disabled={busy}
-          onChange={(e) => void toggle(e.target.checked)}
+          checked={me.emailReminders !== false}
+          onChange={(e) => setEmailReminders(e.target.checked)}
         />
-        {t.notificationsOn}
+        {t.notifyEmail}
       </label>
 
-      {enabled && (
+      {supported ? (
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={subscribed}
+            disabled={busy}
+            onChange={(e) => void togglePush(e.target.checked)}
+          />
+          {t.notifyPush}
+        </label>
+      ) : (
+        <Note>{install ? t.notificationsInstall : t.notificationsUnsupported}</Note>
+      )}
+
+      {subscribed && (
         <button className="btn btn-secondary btn-small" disabled={busy} onClick={() => void test()}>
           {t.sendTest}
         </button>
