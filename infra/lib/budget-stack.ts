@@ -18,8 +18,6 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as scheduler from 'aws-cdk-lib/aws-scheduler';
-import * as route53 from 'aws-cdk-lib/aws-route53';
-import * as targets from 'aws-cdk-lib/aws-route53-targets';
 import * as ses from 'aws-cdk-lib/aws-ses';
 import { Construct } from 'constructs';
 
@@ -236,7 +234,35 @@ export class BudgetStack extends Stack {
     // carries one certificate, and the old domain's DNS lives in Cloudflare so its
     // certificate cannot be reissued from here. Both serve the app while the move
     // is in progress; the old one is retired once sign-in works on the new domain.
-    const zone = route53.HostedZone.fromLookup(this, 'AppZone', { domainName: appDomain });
+    //
+    // DNS for this domain is at Cloudflare too, because the registrar is Cloudflare
+    // and it does not offer custom nameservers. So there are no records here: the
+    // apex and www CNAMEs, the certificate validation and the DKIM records below
+    // are all added by hand there.
+
+    // One name for one thing. www exists because people type it, not as an address
+    // the app answers to.
+    const redirectToApex = new cloudfront.Function(this, 'RedirectToApex', {
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  if (request.headers.host.value !== 'www.${appDomain}') return request;
+
+  // The app routes on the hash and uses no query strings, but carrying them
+  // costs four lines and means the redirect is never the thing that lost one.
+  var query = '';
+  for (var key in request.querystring) {
+    query += (query ? '&' : '?') + key + '=' + request.querystring[key].value;
+  }
+
+  return {
+    statusCode: 301,
+    statusDescription: 'Moved Permanently',
+    headers: { location: { value: 'https://${appDomain}' + request.uri + query } },
+  };
+}`),
+    });
 
     const appDistribution = new cloudfront.Distribution(this, 'AppDistribution', {
       domainNames: [appDomain, `www.${appDomain}`],
@@ -246,6 +272,12 @@ export class BudgetStack extends Stack {
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        functionAssociations: [
+          {
+            function: redirectToApex,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ],
       },
       additionalBehaviors: {
         'api/*': {
@@ -258,19 +290,17 @@ export class BudgetStack extends Stack {
       },
     });
 
-    for (const [name, recordName] of [['Apex', appDomain], ['Www', `www.${appDomain}`]] as const) {
-      const target = route53.RecordTarget.fromAlias(
-        new targets.CloudFrontTarget(appDistribution),
-      );
-      new route53.ARecord(this, `AppAlias${name}`, { zone, recordName, target });
-      new route53.AaaaRecord(this, `AppAliasAaaa${name}`, { zone, recordName, target });
-    }
+    // The tokens are outputs rather than records: nothing here can write to a zone
+    // Cloudflare serves. Verification follows once they are added there, which is
+    // why FROM_ADDRESS does not move in the same deploy that creates this.
+    const mail = new ses.EmailIdentity(this, 'AppMailIdentity', {
+      identity: ses.Identity.domain(appDomain),
+    });
 
-    // The zone is in the account, so the DKIM records are written by this deploy
-    // rather than pasted in by hand. Verification follows a few minutes later,
-    // which is why FROM_ADDRESS is not moved in the same deploy that creates this.
-    new ses.EmailIdentity(this, 'AppMailIdentity', {
-      identity: ses.Identity.publicHostedZone(zone),
+    mail.dkimRecords.forEach((record, index) => {
+      new CfnOutput(this, `MailDkim${index + 1}`, {
+        value: `${record.name} CNAME ${record.value}`,
+      });
     });
 
     new s3deploy.BucketDeployment(this, 'DeploySite', {
