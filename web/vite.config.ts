@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'apple-touch-icon.png'],
       // The generated worker handles caching; push and notification clicks come
       // from a hand-written file it imports.
       workbox: { importScripts: ['/push-sw.js'] },

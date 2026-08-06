@@ -73,6 +73,70 @@ public static class Messages
                 "/#income");
     }
 
+    /// <summary>
+    /// The month a loan's fixed term is renegotiated. Sent on the 1st, so there is
+    /// a month to get an offer rather than being told once it has already reset.
+    /// </summary>
+    public static (string Subject, string Body) ResetNotice(
+        string name,
+        IReadOnlyList<string> loans,
+        string month,
+        string appUrl,
+        string? language = null)
+    {
+        var when = FormatMonth(month, language);
+        var list = string.Join("\n", loans.Select(loan => $"- {loan}"));
+
+        if (IsEnglish(language))
+        {
+            return (loans.Count == 1
+                ? $"{loans[0]} resets in {when}"
+                : $"{loans.Count} loans reset in {when}",
+                $"""
+                Hi {name}!
+
+                The fixed term ends this month for:
+
+                {list}
+
+                Worth asking for an offer before the rate rolls over on its own.
+
+                {appUrl}
+                """);
+        }
+
+        return (loans.Count == 1
+            ? $"{loans[0]} har villkorsändringsdag i {when}"
+            : $"{loans.Count} lån har villkorsändringsdag i {when}",
+            $"""
+            Hej {name}!
+
+            Bindningstiden går ut den här månaden för:
+
+            {list}
+
+            Värt att be om ett omförhandlat erbjudande innan räntan läggs om av sig själv.
+
+            {appUrl}
+            """);
+    }
+
+    public static PushMessage ResetPush(IReadOnlyList<string> loans, string month, string? language)
+    {
+        var when = FormatMonth(month, language);
+        var names = string.Join(", ", loans);
+
+        return IsEnglish(language)
+            ? new PushMessage(
+                loans.Count == 1 ? "Fixed term ends" : "Fixed terms end",
+                $"{names} resets in {when}.",
+                "/#loans")
+            : new PushMessage(
+                "Villkorsändringsdag",
+                $"{names} läggs om i {when}.",
+                "/#loans");
+    }
+
     public static (string Subject, string Body) IncomeReminder(
         string name,
         string month,

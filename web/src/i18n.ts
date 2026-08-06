@@ -101,7 +101,8 @@ const sv = {
   themeLight: 'Ljust',
   themeDark: 'Mörkt',
   notifications: 'Aviseringar',
-  notificationsHint: 'Påminnelse om att fylla i din inkomst den 22, 25 och 27.',
+  notificationsHint:
+    'Påminnelse om inkomst den 22, 25 och 27, och när ett lån har villkorsändringsdag.',
   notifyEmail: 'Mejl',
   notifyPush: 'Push',
   notificationsInstall: 'Lägg till appen på hemskärmen för att kunna få notiser.',
@@ -449,7 +450,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   themeLight: 'Light',
   themeDark: 'Dark',
   notifications: 'Notifications',
-  notificationsHint: 'A reminder to enter your income on the 22nd, 25th and 27th.',
+  notificationsHint:
+    'Income reminders on the 22nd, 25th and 27th, and when a loan\u2019s fixed term ends.',
   notifyEmail: 'Email',
   notifyPush: 'Push',
   notificationsInstall: 'Add the app to your home screen to receive notifications.',

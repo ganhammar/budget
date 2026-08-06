@@ -145,6 +145,20 @@ export class BudgetStack extends Stack {
     });
     reminders.grantInvoke(schedulerRole);
 
+    // On the 1st, so there is a month to get an offer before a loan's fixed term
+    // rolls over on its own.
+    new scheduler.CfnSchedule(this, 'ResetNotice', {
+      flexibleTimeWindow: { mode: 'OFF' },
+      scheduleExpression: 'cron(0 8 1 * ? *)',
+      scheduleExpressionTimezone: 'Europe/Stockholm',
+      target: {
+        arn: reminders.functionArn,
+        roleArn: schedulerRole.roleArn,
+        input: JSON.stringify({ kind: 'reset' }),
+        retryPolicy: { maximumRetryAttempts: 2 },
+      },
+    });
+
     REMINDER_DAYS.forEach((day, index) => {
       new scheduler.CfnSchedule(this, `Reminder${day}`, {
         flexibleTimeWindow: { mode: 'OFF' },
