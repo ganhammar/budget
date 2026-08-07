@@ -419,6 +419,9 @@ api.MapPut("/push", async (
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
 
+    if (!PushSender.IsKnownEndpoint(body.Endpoint))
+        return Results.Json(new ErrorResponse("Okänd push-tjänst."), statusCode: 400);
+
     await s.PutPushSubscriptionAsync(
         caller.HouseholdId,
         new PushSubscription(caller.Member.Id, body.Endpoint, body.P256dh, body.Auth),

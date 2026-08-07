@@ -1,4 +1,6 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
+import * as crypto from 'node:crypto';
 import {
   Stack,
   StackProps,
@@ -22,6 +24,23 @@ import * as ses from 'aws-cdk-lib/aws-ses';
 import { Construct } from 'constructs';
 
 const ROOT = path.join(__dirname, '..', '..');
+
+/**
+ * The hash of the theme script inlined in index.html, so the policy can name that
+ * one script instead of allowing every inline script on the page.
+ *
+ * Read from the built file rather than written down here: a hash copied by hand
+ * goes stale the first time the script is edited, and the failure is a page that
+ * silently stops setting its theme.
+ */
+function inlineScriptHash(): string {
+  const html = fs.readFileSync(path.join(ROOT, 'web', 'dist', 'index.html'), 'utf8');
+  const match = html.match(/<script>([\s\S]*?)<\/script>/);
+  if (!match) {
+    throw new Error('No inline script found in web/dist/index.html; the CSP hash would be wrong');
+  }
+  return crypto.createHash('sha256').update(match[1], 'utf8').digest('base64');
+}
 
 // The domain the app used to live at. It keeps its own certificate and
 // distribution, and now serves nothing but a redirect.
@@ -207,6 +226,47 @@ export class BudgetStack extends Stack {
 
     /* ---------- Web ---------- */
 
+    /*
+     * Everything comes from this origin except Google's sign-in, which needs its
+     * script, the frame it renders the button in, and the requests it makes to
+     * complete a sign-in. Styles allow inline because React sets a few through the
+     * style attribute.
+     */
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'sha256-${inlineScriptHash()}' https://accounts.google.com`,
+      // Google's script pulls its own stylesheet into this document, not just into
+      // the frame it renders. Inline is for the handful React sets as attributes.
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+      "img-src 'self' data: https://*.gstatic.com https://*.googleusercontent.com",
+      "connect-src 'self' https://accounts.google.com",
+      "frame-src https://accounts.google.com",
+      "font-src 'self'",
+      "manifest-src 'self'",
+      "worker-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join('; ');
+
+    const securityHeaders = new cloudfront.ResponseHeadersPolicy(this, 'SecurityHeaders', {
+      securityHeadersBehavior: {
+        contentSecurityPolicy: { contentSecurityPolicy: csp, override: true },
+        strictTransportSecurity: {
+          accessControlMaxAge: Duration.days(365),
+          includeSubdomains: true,
+          override: true,
+        },
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        referrerPolicy: {
+          referrerPolicy: cloudfront.HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+          override: true,
+        },
+      },
+    });
+
     const site = new s3.Bucket(this, 'Site', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
@@ -243,6 +303,7 @@ function handler(event) {
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        responseHeadersPolicy: securityHeaders,
         functionAssociations: [
           { function: redirectToApp, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST },
         ],
@@ -293,6 +354,7 @@ function handler(event) {
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        responseHeadersPolicy: securityHeaders,
         functionAssociations: [
           {
             function: redirectToApex,
@@ -327,12 +389,34 @@ function handler(event) {
       });
     });
 
-    new s3deploy.BucketDeployment(this, 'DeploySite', {
+    const assets = new s3deploy.BucketDeployment(this, 'DeploySite', {
       sources: [s3deploy.Source.asset(path.join(ROOT, 'web', 'dist'))],
       destinationBucket: site,
+      exclude: ['index.html'],
+      // Nothing is pruned: a browser still holding an older index.html asks for the
+      // bundles that one named, and deleting them turns a stale tab into a blank
+      // page rather than a page one refresh behind.
+      prune: false,
+      cacheControl: [
+        s3deploy.CacheControl.setPublic(),
+        s3deploy.CacheControl.maxAge(Duration.days(365)),
+        s3deploy.CacheControl.immutable(),
+      ],
       distribution: appDistribution,
       distributionPaths: ['/*'],
     });
+
+    const entry = new s3deploy.BucketDeployment(this, 'DeployIndex', {
+      sources: [s3deploy.Source.asset(path.join(ROOT, 'web', 'dist'), { exclude: ['assets/*'] })],
+      destinationBucket: site,
+      prune: false,
+      cacheControl: [s3deploy.CacheControl.noCache()],
+      distribution: appDistribution,
+      distributionPaths: ['/index.html'],
+    });
+
+    // The page that names the bundles is written after the bundles exist.
+    entry.node.addDependency(assets);
 
     new CfnOutput(this, 'SiteUrl', { value: `https://${distribution.distributionDomainName}` });
     new CfnOutput(this, 'AppUrl', { value: `https://${appDomain}` });

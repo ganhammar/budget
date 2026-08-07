@@ -14,6 +14,34 @@ public sealed record PushMessage(string Title, string Body, string Url);
 /// </summary>
 public sealed class PushSender(HttpClient http, ECDsa signingKey, string publicKey, string subject)
 {
+    /// <summary>
+    /// The hosts a browser's own push service actually lives on. A subscription is
+    /// a URL this server is told to POST to, and nothing about the shape of one
+    /// proves where it came from, so an endpoint that is not a push service is
+    /// something else wearing the name.
+    /// </summary>
+    private static readonly string[] PushHosts =
+    [
+        "fcm.googleapis.com",              // Chrome, Edge, and Chromium on Android
+        "updates.push.services.mozilla.com", // Firefox
+        "push.services.mozilla.com",
+        "web.push.apple.com",             // Safari, iOS and macOS
+        "notify.windows.com",             // Windows
+        "wns2-by3p.notify.windows.com",
+    ];
+
+    /// <summary>
+    /// Whether an endpoint is one we are willing to send to. Checked where a
+    /// subscription is stored rather than only here, so a rejected one never
+    /// reaches the table.
+    /// </summary>
+    public static bool IsKnownEndpoint(string endpoint) =>
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && PushHosts.Any(host =>
+            uri.Host.Equals(host, StringComparison.OrdinalIgnoreCase)
+            || uri.Host.EndsWith($".{host}", StringComparison.OrdinalIgnoreCase));
+
     public string PublicKey => publicKey;
 
     /// <summary>
@@ -26,6 +54,10 @@ public sealed class PushSender(HttpClient http, ECDsa signingKey, string publicK
     {
         var payload =
             $$"""{"title":{{Json(message.Title)}},"body":{{Json(message.Body)}},"url":{{Json(message.Url)}}}""";
+
+        // Belt and braces: a row written before this check existed is not a reason
+        // to make the request now.
+        if (!IsKnownEndpoint(subscription.Endpoint)) return PushResult.Expired;
 
         var endpoint = new Uri(subscription.Endpoint);
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
