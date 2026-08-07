@@ -232,9 +232,10 @@ api.MapPut("/members/{id}", async (
         return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
 
     var isNew = existing is null;
+    var previous = await s.GetMemberAsync(caller.HouseholdId, id, ct);
 
     // Counted before the write, so the cap holds however many members already exist.
-    if (isNew)
+    if (isNew && previous is null)
     {
         var budget = await s.GetBudgetAsync(caller.HouseholdId, null, ct);
         if (budget is not null && budget.Members.Count >= memberLimit)
@@ -244,6 +245,15 @@ api.MapPut("/members/{id}", async (
     }
 
     await s.PutMemberAsync(caller.HouseholdId, member, ct);
+
+    // An address is what the session is resolved against, so the one being replaced
+    // has to stop resolving. Left behind, the old Google account keeps signing in to
+    // this household for good, and deleting the member later would not reach it.
+    if (previous is not null &&
+        !string.Equals(previous.Email, member.Email, StringComparison.OrdinalIgnoreCase))
+    {
+        await s.DeleteProfileAsync(previous.Email, ct);
+    }
 
     if (isNew)
     {

@@ -88,6 +88,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     void load();
   }, [load]);
 
+  /**
+   * Re-reads the budget when the app is looked at again.
+   *
+   * Two phones edit the same household, and a tab left open all day holds a
+   * snapshot from whenever it last loaded. Writing from that snapshot replaces
+   * whatever arrived in between with values that were already stale when the
+   * screen was drawn, which is not a hypothetical: it has already erased a loan's
+   * rate history once.
+   *
+   * Only when the write queue is settled, so a refresh can never land on top of an
+   * edit that has not been acknowledged yet.
+   */
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      const settled = queue.current;
+      void settled.then(async () => {
+        if (queue.current !== settled) return;
+        try {
+          const fresh = normalize(await api.budget());
+          if (queue.current === settled) setBudget(fresh);
+        } catch {
+          // The screen keeps what it has; the next attempt can correct it.
+        }
+      });
+    };
+
+    document.addEventListener('visibilitychange', refresh);
+    return () => document.removeEventListener('visibilitychange', refresh);
+  }, []);
+
   const signIn = useCallback(
     async (googleCredential: string) => {
       setLoading(true);
@@ -138,11 +169,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .then(() => Promise.all(calls))
           .catch((e: unknown) => {
             setError(e instanceof Error ? e.message : messages().errorSave);
+            // The optimistic state is now a claim the server refused. Showing it
+            // is worse than the interruption of putting the real figures back.
+            void load();
           });
       }
       return next;
     });
-  }, []);
+  }, [load]);
 
   const createHousehold = useCallback(async (householdName: string, name: string) => {
     setLoading(true);
