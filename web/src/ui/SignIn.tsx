@@ -4,6 +4,8 @@ import { Note } from './components';
 import { useText } from '../i18n';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+/** Matches the clip in .landing-button; Google's frame around it is clipped away. */
+const BUTTON_WIDTH = 280;
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
 
 interface GoogleCredentialResponse {
@@ -75,11 +77,14 @@ export function SignIn() {
           callback: (response) => void signIn(response.credential),
         });
         window.google.accounts.id.renderButton(buttonRef.current, {
-          theme: 'outline',
+          // Google paints the frame it renders into, and no option controls that,
+          // so the container clips it. Matching the button to the page at least
+          // means what survives the clip belongs here.
+          theme: document.documentElement.dataset.theme === 'dark' ? 'outline_dark' : 'outline',
           size: 'large',
           text: 'signin_with',
           locale: 'sv',
-          width: 280,
+          width: BUTTON_WIDTH,
         });
       })
       .catch(() => {

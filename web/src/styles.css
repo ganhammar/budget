@@ -1182,11 +1182,25 @@ input:disabled {
   color: var(--ink);
 }
 
+/*
+ * Google renders its button inside a 300x44 frame it paints white whatever theme
+ * is asked for, and no configuration field reaches inside it. The frame carries
+ * `margin: -2px -10px` of Google's own, which takes the white out of the layout
+ * but not out of the paint, so it still shows. Clipping to the button's real
+ * 280x40 removes it on all four sides.
+ *
+ * Both height and min-height, because min-height would otherwise win and leave
+ * the bottom band showing.
+ */
 .landing-button {
   display: flex;
   justify-content: center;
-  min-height: 44px;
+  width: 280px;
+  height: 40px;
+  min-height: 40px;
   margin-top: 6px;
+  overflow: hidden;
+  border-radius: 4px;
 }
 
 .landing-error {
