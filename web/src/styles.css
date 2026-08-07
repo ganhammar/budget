@@ -227,6 +227,21 @@ body {
   margin-bottom: 0;
 }
 
+.household-balance {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+/* Matches the label above a field, so the section reads like the ones near it. */
+.household-balance h3 {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-2);
+  margin: 0 0 2px;
+}
+
 .account-footer {
   display: flex;
   flex-direction: column;

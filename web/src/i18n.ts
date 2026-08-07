@@ -187,6 +187,8 @@ const sv = {
   pausedSavings: 'Pausat sparande',
   jointAccount: 'Gemensamt konto',
   balanceNote: 'Ange saldot som det faktiskt ser ut i dag. Prognosen räknar framåt därifrån.',
+  balanceAsOf: (month: string) => `Saldo per ${month}`,
+  balanceUnset: 'Inget saldo angivet. Prognosen för det gemensamma kontot visas när det finns ett.',
   balanceField: 'Saldo',
   appliesToMonth: 'Gäller månad',
   forecastRange: (from: string, to: string) =>
@@ -544,6 +546,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   pausedSavings: 'Paused savings',
   jointAccount: 'Joint account',
   balanceNote: 'Enter the balance as it stands today. The forecast counts forward from there.',
+  balanceAsOf: (month: string) => `Balance as of ${month}`,
+  balanceUnset: 'No balance recorded. The joint account forecast appears once there is one.',
   balanceField: 'Balance',
   appliesToMonth: 'Applies to month',
   forecastRange: (from: string, to: string) => `The forecast runs from ${from} to ${to}.`,

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useBudget, newId } from '../store/store';
 import type { Member, Role, SplitRule } from '../domain/types';
 import { sek } from '../domain/format';
-import { Card, Field, ListRow, Note, Sheet } from './components';
+import { currentMonth, formatMonth } from '../domain/month';
+import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
 import { api } from '../api/client';
 import { useText } from '../i18n';
 
@@ -18,6 +19,7 @@ export function Household() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<Member | null>(null);
   const [resend, setResend] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [editingBalance, setEditingBalance] = useState(false);
 
   async function resendInvite(member: Member) {
     setResend('sending');
@@ -99,7 +101,13 @@ export function Household() {
     update((b) => ({ ...b, household: { ...b.household, split } }));
   }
 
+  function saveBalance(amount: number, month: string) {
+    update((b) => ({ ...b, accountBalance: { amount, month } }));
+    setEditingBalance(false);
+  }
+
   const adminCount = budget.members.filter((m) => m.role === 'admin').length;
+  const balance = budget.accountBalance;
   const split = budget.household.split ?? 'equalLeftover';
 
   return (
@@ -166,6 +174,19 @@ export function Household() {
           </Field>
         </div>
 
+        {/* A reading rather than a setting: the month it was taken is half of
+            what it means, so it is shown rather than tucked into the editor.
+            Anyone may record it; it is the joint account, not a permission. */}
+        <div className="household-balance">
+          <h3>{t.jointAccount}</h3>
+          <ListRow
+            title={balance ? t.balanceAsOf(formatMonth(balance.month)) : t.jointAccount}
+            subtitle={balance ? undefined : t.balanceUnset}
+            amount={balance ? sek(balance.amount) : '—'}
+            onClick={() => setEditingBalance(true)}
+          />
+        </div>
+
         {!isAdmin && (
           <div style={{ marginTop: 12 }}>
             <Note>
@@ -174,6 +195,14 @@ export function Household() {
           </div>
         )}
       </Card>
+
+      {editingBalance && (
+        <BalanceSheet
+          balance={budget.accountBalance ?? null}
+          onSave={saveBalance}
+          onClose={() => setEditingBalance(false)}
+        />
+      )}
 
       {renaming !== null && (
         <Sheet title={t.renameHousehold} onClose={() => setRenaming(null)}>
@@ -288,5 +317,47 @@ export function Household() {
         </Sheet>
       )}
     </>
+  );
+}
+
+/**
+ * The month matters as much as the figure: the forecast starts there and counts
+ * forward, so a reading from six months ago is six months of assumption.
+ */
+function BalanceSheet({
+  balance,
+  onSave,
+  onClose,
+}: {
+  balance: { amount: number; month: string } | null;
+  onSave: (amount: number, month: string) => void;
+  onClose: () => void;
+}) {
+  const t = useText();
+  const [amount, setAmount] = useState<number | ''>(balance?.amount ?? '');
+  const [month, setMonth] = useState(balance?.month ?? currentMonth());
+
+  return (
+    <Sheet title={t.jointAccount} onClose={onClose}>
+      <div style={{ marginBottom: 14 }}>
+        <Note>{t.balanceNote}</Note>
+      </div>
+
+      <Field label={t.balanceField}>
+        <AmountInput value={amount} onChange={setAmount} step={100} />
+      </Field>
+
+      <Field label={t.appliesToMonth}>
+        <MonthInput value={month} onChange={setMonth} />
+      </Field>
+
+      <button
+        className="btn"
+        disabled={amount === ''}
+        onClick={() => onSave(Number(amount), month)}
+      >
+        {t.save}
+      </button>
+    </Sheet>
   );
 }

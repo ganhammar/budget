@@ -119,24 +119,21 @@ export function Overview() {
         </div>
       </Card>
 
-      <Card
-        title={t.jointAccountAhead}
-        action={
-          points.length > 0 ? (
+      {/* Without a recorded balance there is nothing to count forward from, and a
+          card explaining its own absence is worse than no card. Recording one is
+          in household settings, where the rest of the joint account lives. */}
+      {points.length > 0 && (
+        <Card
+          title={t.jointAccountAhead}
+          action={
             <button className="btn btn-small btn-secondary" onClick={() => setShowTable((v) => !v)}>
               {showTable ? t.chart : t.table}
             </button>
-          ) : undefined
-        }
-      >
-        {points.length === 0 ? (
-          <Empty text={t.forecastEmpty} />
-        ) : showTable ? (
-          <ForecastTable points={points} />
-        ) : (
-          <ForecastChart points={points} />
-        )}
-      </Card>
+          }
+        >
+          {showTable ? <ForecastTable points={points} /> : <ForecastChart points={points} />}
+        </Card>
+      )}
     </>
   );
 }

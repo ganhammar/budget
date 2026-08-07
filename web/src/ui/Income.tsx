@@ -9,8 +9,8 @@ import {
 } from '../domain/income';
 import { incomeFor } from '../domain/engine';
 import { sek } from '../domain/format';
-import { addMonths, currentMonth, formatMonth, formatMonthShort } from '../domain/month';
-import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
+import { currentMonth, formatMonth, formatMonthShort } from '../domain/month';
+import { AmountInput, Card, Field, ListRow, Note, Sheet } from './components';
 import { ConfirmIncome } from './ConfirmIncome';
 import { useText } from '../i18n';
 
@@ -68,10 +68,6 @@ export function Income() {
       ],
     }));
     setEditing(null);
-  }
-
-  function setBalance(amount: number, month: string) {
-    update((b) => ({ ...b, accountBalance: { amount, month } }));
   }
 
   return (
@@ -185,34 +181,6 @@ export function Income() {
         </div>
       </Card>
 
-      <Card title={t.jointAccount}>
-        <div style={{ marginBottom: 14 }}>
-          <Note>{t.balanceNote}</Note>
-        </div>
-        <div className="field-pair">
-          <Field label={t.balanceField}>
-            <AmountInput
-              value={budget.accountBalance?.amount ?? ''}
-              onChange={(v) => setBalance(v, budget.accountBalance?.month ?? thisMonth)}
-              step={100}
-            />
-          </Field>
-          <Field label={t.appliesToMonth}>
-            <MonthInput
-              value={budget.accountBalance?.month ?? thisMonth}
-              onChange={(v) => setBalance(budget.accountBalance?.amount ?? 0, v)}
-            />
-          </Field>
-        </div>
-        {budget.accountBalance && (
-          <span className="hint">
-            {t.forecastRange(
-              formatMonth(budget.accountBalance.month),
-              formatMonth(addMonths(budget.accountBalance.month, 23)),
-            )}
-          </span>
-        )}
-      </Card>
 
       {editing && (
         <Sheet title={`${t.income} · ${formatMonth(editing)}`} onClose={() => setEditing(null)}>
