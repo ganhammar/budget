@@ -23,8 +23,12 @@ import { Construct } from 'constructs';
 
 const ROOT = path.join(__dirname, '..', '..');
 
-const SITE_DOMAIN = process.env.SITE_DOMAIN ?? 'budget.ganhammar.se';
-const FROM_ADDRESS = process.env.FROM_ADDRESS ?? 'budget@ganhammar.se';
+// The domain the app used to live at. It keeps its own certificate and
+// distribution, and now serves nothing but a redirect.
+const LEGACY_DOMAIN = process.env.SITE_DOMAIN ?? 'budget.ganhammar.se';
+// Nothing reads replies to a reminder, and implying otherwise is worse than
+// saying so.
+const FROM_ADDRESS = process.env.FROM_ADDRESS ?? 'no-reply@pnkt.app';
 /** Days of the month the income reminder goes out, in Swedish local time. */
 const REMINDER_DAYS = [22, 25, 27];
 
@@ -107,7 +111,7 @@ export class BudgetStack extends Stack {
         GOOGLE_CLIENT_ID: googleClientId,
         SESSION_SECRET_ARN: sessionSecret.secretArn,
         FROM_ADDRESS: FROM_ADDRESS,
-        APP_URL: `https://${SITE_DOMAIN}`,
+        APP_URL: `https://${appDomain}`,
         VAPID_SECRET_ARN: vapidSecret.secretArn,
         VAPID_PUBLIC_KEY: VAPID_PUBLIC_KEY,
       },
@@ -129,7 +133,7 @@ export class BudgetStack extends Stack {
       environment: {
         TABLE_NAME: table.tableName,
         FROM_ADDRESS: FROM_ADDRESS,
-        APP_URL: `https://${SITE_DOMAIN}`,
+        APP_URL: `https://${appDomain}`,
         VAPID_SECRET_ARN: vapidSecret.secretArn,
         VAPID_PUBLIC_KEY: VAPID_PUBLIC_KEY,
       },
@@ -204,28 +208,38 @@ export class BudgetStack extends Stack {
       autoDeleteObjects: true,
     });
 
+    // Everything that reaches the old domain is sent to the new one, path intact.
+    // Bookmarks and home-screen shortcuts keep working; what they open is pnkt.app.
+    const redirectToApp = new cloudfront.Function(this, 'RedirectToApp', {
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  var query = '';
+  for (var key in request.querystring) {
+    query += (query ? '&' : '?') + key + '=' + request.querystring[key].value;
+  }
+  return {
+    statusCode: 301,
+    statusDescription: 'Moved Permanently',
+    headers: { location: { value: 'https://${appDomain}' + request.uri + query } },
+  };
+}`),
+    });
+
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
-      domainNames: [SITE_DOMAIN],
+      domainNames: [LEGACY_DOMAIN],
       certificate: acm.Certificate.fromCertificateArn(this, 'Certificate', CERTIFICATE_ARN),
-      defaultRootObject: 'index.html',
       defaultBehavior: {
+        // An origin is required even though the function answers every request
+        // before one is made.
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        functionAssociations: [
+          { function: redirectToApp, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST },
+        ],
       },
-      additionalBehaviors: {
-        // Same origin as the app, so the session cookie needs no CORS or SameSite=None.
-        'api/*': {
-          origin: new origins.HttpOrigin(apiDomain),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
-        },
-      },
-      // No SPA error-page fallback on purpose. The app routes on the hash, so there
-      // are no deep paths to rewrite, and a distribution-wide rule would silently
-      // turn genuine API 403s and 404s into a 200 page of HTML.
     });
 
     /* ---------- pnkt.app ---------- */
@@ -288,6 +302,9 @@ function handler(event) {
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
         },
       },
+      // No SPA error-page fallback on purpose. The app routes on the hash, so there
+      // are no deep paths to rewrite, and a distribution-wide rule would silently
+      // turn genuine API 403s and 404s into a 200 page of HTML.
     });
 
     // The tokens are outputs rather than records: nothing here can write to a zone
@@ -306,7 +323,7 @@ function handler(event) {
     new s3deploy.BucketDeployment(this, 'DeploySite', {
       sources: [s3deploy.Source.asset(path.join(ROOT, 'web', 'dist'))],
       destinationBucket: site,
-      distribution,
+      distribution: appDistribution,
       distributionPaths: ['/*'],
     });
 
