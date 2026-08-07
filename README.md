@@ -104,6 +104,31 @@ membership row gets a 401 and the create-household screen. That is why the OAuth
 consent screen can be published without exposing anything: access is decided by the
 household member list, not by who Google will vouch for.
 
+Roles are enforced on the server, not only in the UI. Renaming the household,
+changing how it splits costs, adding or removing a member, and resending an invite
+all require an admin. Income may be written by the member it is about, or by an
+admin on their behalf. A member may write their own record, because that is how
+preferences are saved, but role, status, address and baseline are taken from the
+stored record rather than the request. A household cannot be left with no admin.
+
+### Deliberate limits
+
+Three things a security review will raise, kept as they are on purpose:
+
+The session is a 30-day bearer token with no revocation list, so signing out clears
+the cookie without invalidating the token. What makes this acceptable is that every
+request re-resolves the profile from the member's address, so removing a member ends
+their access immediately, which is the case that matters.
+
+The API is also reachable directly at its execute-api URL, bypassing CloudFront and
+the response headers set there. Those headers only mean anything to a browser, and a
+browser will not attach the session cookie to that origin, so nothing is reachable
+there that is not reachable through the front door.
+
+The development CORS policy for `localhost:5173` is registered in production too.
+Under `SameSite=Lax` it grants nothing, since the cookie is never sent from another
+origin in the first place.
+
 ## Email
 
 Sent through SES from `budget@ganhammar.se`, on a domain verified with DKIM.

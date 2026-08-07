@@ -180,6 +180,26 @@ IResult Error(string message, int statusCode) =>
 // just not allowed to do this.
 IResult Forbidden() => Error("Bara administratörer kan göra det.", 403);
 
+/*
+ * Refuses to leave a household with no admin.
+ *
+ * Every way back to being one goes through an admin, so a household that loses its
+ * last one can never be renamed, invited to, or have a member added or removed
+ * again. There is no repair from inside the app, which makes it the one mistake
+ * here that cannot be undone.
+ */
+async Task<bool> WouldStrandHouseholdAsync(
+    BudgetStore store, string householdId, string memberId, bool stillAdmin, CancellationToken ct)
+{
+    if (stillAdmin) return false;
+
+    var budget = await store.GetBudgetAsync(householdId, null, ct);
+    if (budget is null) return false;
+
+    var admins = budget.Members.Where(m => m.Role == "admin" && m.Status == "active").ToList();
+    return admins.Count == 1 && admins[0].Id == memberId;
+}
+
 var api = app.MapGroup("/api");
 
 api.MapGet("/budget", async (HttpContext ctx, BudgetStore store, SessionTokens sessions, CancellationToken ct) =>
@@ -199,10 +219,15 @@ api.MapPut("/household", async (
     if (!caller.HasHousehold) return Results.Unauthorized();
     if (!caller.IsAdmin) return Forbidden();
 
+    // The same cap as creating one: this name reaches every invite mail the
+    // household sends, whichever endpoint set it.
+    var name = request.Name.Trim();
+    if (name.Length is 0 or > nameLimit) return Error("Namnet är för långt.", 400);
+
     var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
     if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
 
-    await store.PutMetaAsync(meta with { Household = meta.Household with { Name = request.Name } }, ct);
+    await store.PutMetaAsync(meta with { Household = meta.Household with { Name = name } }, ct);
     return Results.NoContent();
 });
 
@@ -289,6 +314,12 @@ api.MapPut("/members/{id}", async (
         var budget = await s.GetBudgetAsync(caller.HouseholdId, null, ct);
         if (budget is not null && budget.Members.Count >= memberLimit)
             return Error($"Ett hushåll kan ha högst {memberLimit} medlemmar.", 409);
+    }
+
+    if (await WouldStrandHouseholdAsync(
+            s, caller.HouseholdId, id, member.Role == "admin" && member.Status == "active", ct))
+    {
+        return Error("Hushållet måste ha minst en administratör.", 409);
     }
 
     await s.PutMemberAsync(caller.HouseholdId, member, ct);
@@ -399,6 +430,9 @@ api.MapDelete("/members/{id}", async (
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
     if (!caller.IsAdmin) return Forbidden();
+
+    if (await WouldStrandHouseholdAsync(s, caller.HouseholdId, id, false, ct))
+        return Error("Hushållet måste ha minst en administratör.", 409);
 
     // The profile has to go too, or a removed member can still sign back in.
     var member = await s.GetMemberAsync(caller.HouseholdId, id, ct);

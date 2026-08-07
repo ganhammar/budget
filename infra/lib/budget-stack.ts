@@ -89,6 +89,9 @@ export class BudgetStack extends Stack {
       sortKey: { name: 'sk', type: dynamodb.AttributeType.STRING },
       billing: dynamodb.Billing.onDemand(),
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      // Only the invite counters carry `expires`. Everything else in the table is
+      // written without it and is never collected.
+      timeToLiveAttribute: 'expires',
       // Household finances: losing the table to a stack delete would be unrecoverable.
       removalPolicy: RemovalPolicy.RETAIN,
     });

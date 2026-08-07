@@ -222,6 +222,40 @@ test.describe('roles', () => {
     ).toBe(403);
   });
 
+  test('the last admin cannot demote or remove themselves', async ({ request }) => {
+    const h = await household(request);
+
+    const demote = await request.put(`/api/members/${h.adminId}`, {
+      headers: { cookie: h.admin },
+      data: {
+        id: h.adminId,
+        name: 'Anton',
+        email: `${unique('x')}@e2e.se`,
+        role: 'member',
+        status: 'active',
+        baselineIncome: 0,
+      },
+    });
+    expect(demote.status()).toBe(409);
+
+    const remove = await request.delete(`/api/members/${h.adminId}`, { headers: { cookie: h.admin } });
+    expect(remove.status()).toBe(409);
+
+    // Still an admin, so the household can still be administered.
+    expect(
+      (await request.put('/api/household', { headers: { cookie: h.admin }, data: { name: 'Fortfarande' } })).status(),
+    ).toBe(204);
+  });
+
+  test('renaming is held to the same length as creating', async ({ request }) => {
+    const h = await household(request);
+    const response = await request.put('/api/household', {
+      headers: { cookie: h.admin },
+      data: { name: 'x'.repeat(200) },
+    });
+    expect(response.status()).toBe(400);
+  });
+
   test('a member may still save their own preferences', async ({ request }) => {
     const h = await household(request);
 
