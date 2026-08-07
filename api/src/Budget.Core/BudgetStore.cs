@@ -66,6 +66,42 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
     public Task DeleteProfileAsync(string email, CancellationToken ct) =>
         Delete(UserKey(email), Profile, ct);
 
+    /// <summary>
+    /// Counts one invite against the household's allowance for the day and returns
+    /// the new total. Atomic, so two requests at once cannot both see the same
+    /// number and both decide there is room.
+    ///
+    /// The row carries an expiry attribute for the day after it stops mattering.
+    /// TTL is not enabled on the table, so nothing collects them today; they are one
+    /// small row per household per day on which an invite was actually sent.
+    /// </summary>
+    public async Task<long> CountInviteAsync(string householdId, DateOnly day, CancellationToken ct)
+    {
+        var expires = new DateTimeOffset(day.AddDays(2), TimeOnly.MinValue, TimeSpan.Zero)
+            .ToUnixTimeSeconds();
+
+        var response = await client.UpdateItemAsync(
+            new UpdateItemRequest
+            {
+                TableName = tableName,
+                Key = new Dictionary<string, AttributeValue>
+                {
+                    ["pk"] = S(HouseholdKey(householdId)),
+                    ["sk"] = S($"INVITES#{day:yyyy-MM-dd}"),
+                },
+                UpdateExpression = "ADD sent :one SET expires = :expires",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":one"] = new() { N = "1" },
+                    [":expires"] = new() { N = expires.ToString() },
+                },
+                ReturnValues = ReturnValue.UPDATED_NEW,
+            },
+            ct);
+
+        return response.Attributes.TryGetValue("sent", out var sent) ? long.Parse(sent.N) : 0;
+    }
+
     public async Task<Member?> GetMemberAsync(string householdId, string memberId, CancellationToken ct)
     {
         var response = await client.GetItemAsync(

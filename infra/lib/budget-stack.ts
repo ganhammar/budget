@@ -196,6 +196,13 @@ export class BudgetStack extends Stack {
       defaultIntegration: new integrations.HttpLambdaIntegration('ApiIntegration', api),
     });
 
+    // Blunt protection for everything behind it. A household generates a handful of
+    // requests a minute; anything near these numbers is not someone keeping a budget.
+    (httpApi.defaultStage!.node.defaultChild as apigw.CfnStage).defaultRouteSettings = {
+      throttlingRateLimit: 25,
+      throttlingBurstLimit: 50,
+    };
+
     const apiDomain = `${httpApi.apiId}.execute-api.${this.region}.${this.urlSuffix}`;
 
     /* ---------- Web ---------- */

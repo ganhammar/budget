@@ -115,12 +115,17 @@ app.MapPost("/api/households", async (
     if (caller.HasHousehold)
         return Results.Conflict(new ErrorResponse("Du tillhör redan ett hushåll."));
 
+    var householdName = request.HouseholdName.Trim();
+    var callerName = request.Name.Trim();
+    if (householdName.Length is 0 or > 60 || callerName.Length is 0 or > 60)
+        return Results.Json(new ErrorResponse("Namnet är för långt."), statusCode: 400);
+
     var email = caller.Email!;
     var householdId = Guid.NewGuid().ToString();
     var memberId = Guid.NewGuid().ToString();
 
-    var household = new Household(householdId, request.HouseholdName, DateTime.UtcNow.ToString("yyyy-MM"));
-    var member = new Member(memberId, request.Name, email, "admin", "active", 0m);
+    var household = new Household(householdId, householdName, DateTime.UtcNow.ToString("yyyy-MM"));
+    var member = new Member(memberId, callerName, email, "admin", "active", 0m);
 
     await store.PutMetaAsync(new BudgetMeta(household, null), ct);
     await store.PutMemberAsync(householdId, member, ct);
@@ -133,6 +138,17 @@ app.MapPost("/api/households", async (
 });
 
 /* ---------- Everything below needs a household ---------- */
+
+/*
+ * Anyone with a Google account can create a household and invite addresses to it,
+ * and an invite is an email this domain sends carrying text the sender chose. These
+ * bound what that is worth to someone who is not here to keep a budget: how much
+ * text they can put in front of a stranger, how many strangers, and how often.
+ */
+const int nameLimit = 60;
+const int emailLimit = 254;
+const int memberLimit = 5;
+const int invitesPerDay = 10;
 
 var api = app.MapGroup("/api");
 
@@ -206,13 +222,27 @@ api.MapPut("/members/{id}", async (
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
 
-    var member = body with { Id = id };
+    var member = (body with { Id = id, Name = body.Name.Trim(), Email = body.Email.Trim() });
+    if (member.Name.Length is 0 or > nameLimit || member.Email.Length is 0 or > emailLimit)
+        return Results.Json(new ErrorResponse("Namnet eller adressen är för lång."), statusCode: 400);
+
     var existing = await s.GetProfileAsync(member.Email, ct);
 
     if (existing is not null && existing.HouseholdId != caller.HouseholdId)
         return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
 
     var isNew = existing is null;
+
+    // Counted before the write, so the cap holds however many members already exist.
+    if (isNew)
+    {
+        var budget = await s.GetBudgetAsync(caller.HouseholdId, null, ct);
+        if (budget is not null && budget.Members.Count >= memberLimit)
+            return Results.Json(
+                new ErrorResponse($"Ett hushåll kan ha högst {memberLimit} medlemmar."),
+                statusCode: 409);
+    }
+
     await s.PutMemberAsync(caller.HouseholdId, member, ct);
 
     if (isNew)
@@ -222,20 +252,33 @@ api.MapPut("/members/{id}", async (
         // Only on the first write, so editing a member later does not re-invite them.
         if (emailEnabled && member.Status == "invited")
         {
-            var meta = await s.GetMetaAsync(caller.HouseholdId, ct);
-            var invite = Messages.Invite(
-                meta?.Household.Name ?? "hushållet",
-                caller.Member?.Name ?? "Någon",
-                mail.AppUrl,
-                member.Language);
-            try
+            var sent = await s.CountInviteAsync(
+                caller.HouseholdId, DateOnly.FromDateTime(DateTime.UtcNow), ct);
+
+            if (sent > invitesPerDay)
             {
-                await mail.SendAsync(member.Email, invite.Subject, invite.Body, ct);
+                // The member is saved either way; they can be invited again tomorrow,
+                // or by resending once the allowance resets.
+                app.Logger.LogWarning(
+                    "Invite allowance spent for household {Household}", caller.HouseholdId);
             }
-            catch (Exception ex)
+            else
             {
-                // The member is already saved; failing the request would be worse.
-                app.Logger.LogError(ex, "Could not send invite to {Email}", member.Email);
+                var meta = await s.GetMetaAsync(caller.HouseholdId, ct);
+                var invite = Messages.Invite(
+                    meta?.Household.Name ?? "hushållet",
+                    caller.Member?.Name ?? "Någon",
+                    mail.AppUrl,
+                    member.Language);
+                try
+                {
+                    await mail.SendAsync(member.Email, invite.Subject, invite.Body, ct);
+                }
+                catch (Exception ex)
+                {
+                    // The member is already saved; failing the request would be worse.
+                    app.Logger.LogError(ex, "Could not send invite to {Email}", member.Email);
+                }
             }
         }
     }
@@ -266,6 +309,13 @@ api.MapPost("/members/{id}/invite", async (
         await s.PutProfileAsync(new UserProfile(member.Email, caller.HouseholdId, id), ct);
     else if (existing.HouseholdId != caller.HouseholdId)
         return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
+
+    var sent = await s.CountInviteAsync(
+        caller.HouseholdId, DateOnly.FromDateTime(DateTime.UtcNow), ct);
+    if (sent > invitesPerDay)
+        return Results.Json(
+            new ErrorResponse("För många inbjudningar idag. Försök igen imorgon."),
+            statusCode: 429);
 
     var meta = await s.GetMetaAsync(caller.HouseholdId, ct);
     var invite = Messages.Invite(
