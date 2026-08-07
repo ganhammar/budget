@@ -5,6 +5,7 @@ using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Amazon.SimpleEmailV2;
+using Microsoft.AspNetCore.Mvc;
 using Budget.Api;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -408,7 +409,12 @@ api.MapPut("/household/split", async (
 /* ---------- Push notifications ---------- */
 
 // The public key is not a secret: the browser needs it to create a subscription.
-api.MapGet("/push/key", (PushSender? push) =>
+//
+// [FromServices] is load-bearing. Without it, an unregistered PushSender is taken
+// for a JSON body parameter, and the missing type metadata throws while the route
+// table is built, which takes down every endpoint in the group rather than this
+// one. Push is optional, so that is every environment without a VAPID key.
+api.MapGet("/push/key", ([FromServices] PushSender? push) =>
     push is null
         ? Results.Json(new ErrorResponse("Push är inte konfigurerat."), statusCode: 503)
         : Results.Ok(new PushKeyResponse(push.PublicKey)));
@@ -442,7 +448,8 @@ api.MapDelete("/push", async (
 // Proves the whole path end to end, which is the only way to know push works on a
 // given device: permission, subscription, encryption and the service relaying it.
 api.MapPost("/push/test", async (
-    HttpContext ctx, BudgetStore s, SessionTokens t, PushSender? push, CancellationToken ct) =>
+    HttpContext ctx, BudgetStore s, SessionTokens t,
+    [FromServices] PushSender? push, CancellationToken ct) =>
 {
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();

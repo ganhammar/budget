@@ -4,4 +4,7 @@
     <Project Path="src/Budget.Core/Budget.Core.csproj" />
     <Project Path="src/Budget.Reminders/Budget.Reminders.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Budget.Tests/Budget.Tests.csproj" />
+  </Folder>
 </Solution>

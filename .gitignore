@@ -34,3 +34,7 @@ infra/.cdk.staging
 # Throwaway design exploration
 design-mockup.html
 web/public/mockup.html
+
+# Playwright
+web/test-results/
+web/playwright-report/

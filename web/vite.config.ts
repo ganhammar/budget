@@ -5,7 +5,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   server: {
     // Same origin in production behind CloudFront; proxied here so it matches.
-    proxy: { '/api': 'http://localhost:5080' },
+    // The end-to-end run points this at its own API so it never shares a table
+    // with the one being worked in.
+    proxy: { '/api': process.env.VITE_API_PROXY ?? 'http://localhost:5080' },
   },
   plugins: [
     react(),

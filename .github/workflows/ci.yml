@@ -45,6 +45,64 @@ jobs:
           path: api/publish-reminders/
           retention-days: 7
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - run: dotnet test api/Budget.slnx --configuration Release
+
+  e2e:
+    # The whole path: a browser, the dev server's proxy, the API, and a real
+    # DynamoDB. It is the only place the wiring between them is exercised.
+    runs-on: ubuntu-latest
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8042:8000
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+        working-directory: web
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+
+      - name: Create the table
+        run: ./api/scripts/create-local-table.sh
+        env:
+          DYNAMODB_ENDPOINT: http://localhost:8042
+          TABLE_NAME: budget-e2e
+
+      - run: npm run e2e
+        working-directory: web
+        env:
+          DYNAMODB_ENDPOINT: http://localhost:8042
+          TABLE_NAME: budget-e2e
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/test-results/
+          retention-days: 7
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +125,7 @@ jobs:
         working-directory: web
 
   deploy:
-    needs: [api, web]
+    needs: [api, web, test, e2e]
     # Dispatch deploys too, so a deploy can be re-run without an empty commit
     # when a push event goes missing or a deploy needs repeating unchanged.
     if: >-
