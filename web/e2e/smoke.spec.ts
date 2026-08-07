@@ -109,3 +109,131 @@ test.describe('signed in', () => {
     expect(response.status()).toBe(400);
   });
 });
+
+/**
+ * The UI has always drawn a line between an admin and a member. Until now the API
+ * did not, so the line was a drawing.
+ */
+test.describe('roles', () => {
+  /** A household with an admin and a plain member, and a cookie for each. */
+  async function household(request: import('@playwright/test').APIRequestContext) {
+    const adminEmail = `${unique('admin')}@e2e.se`;
+    const memberEmail = `${unique('member')}@e2e.se`;
+    const admin = `budget_session=${devSessionCookie(adminEmail)}`;
+    const member = `budget_session=${devSessionCookie(memberEmail)}`;
+
+    const created = await request.post('/api/households', {
+      headers: { cookie: admin },
+      data: HOUSEHOLD,
+    });
+    expect(created.status()).toBe(201);
+    const budget = await created.json();
+    const adminId = budget.members[0].id;
+
+    const memberId = unique('m');
+    expect(
+      (
+        await request.put(`/api/members/${memberId}`, {
+          headers: { cookie: admin },
+          data: {
+            id: memberId,
+            name: 'Petra',
+            email: memberEmail,
+            role: 'member',
+            status: 'active',
+            baselineIncome: 25500,
+          },
+        })
+      ).status(),
+    ).toBe(204);
+
+    return { admin, member, adminId, memberId, memberEmail };
+  }
+
+  test('a member cannot make themselves an admin', async ({ request }) => {
+    const h = await household(request);
+
+    const response = await request.put(`/api/members/${h.memberId}`, {
+      headers: { cookie: h.member },
+      data: {
+        id: h.memberId,
+        name: 'Petra',
+        email: h.memberEmail,
+        role: 'admin',
+        status: 'active',
+        baselineIncome: 25500,
+      },
+    });
+
+    // The write is allowed, because this is also how preferences are saved.
+    expect(response.status()).toBe(204);
+
+    // The role is not.
+    const budget = await (await request.get('/api/budget', { headers: { cookie: h.member } })).json();
+    expect(budget.members.find((m: { id: string }) => m.id === h.memberId).role).toBe('member');
+  });
+
+  test('a member cannot rewrite their own income upwards through another member', async ({ request }) => {
+    const h = await household(request);
+
+    const own = await request.put(`/api/income/2026-08/${h.memberId}`, {
+      headers: { cookie: h.member },
+      data: { amount: 25500, enteredById: null },
+    });
+    expect(own.status()).toBe(204);
+
+    const other = await request.put(`/api/income/2026-08/${h.adminId}`, {
+      headers: { cookie: h.member },
+      data: { amount: 1, enteredById: null },
+    });
+    expect(other.status()).toBe(403);
+  });
+
+  test('an admin may fill in on someone else behalf', async ({ request }) => {
+    const h = await household(request);
+    const response = await request.put(`/api/income/2026-08/${h.memberId}`, {
+      headers: { cookie: h.admin },
+      data: { amount: 25500, enteredById: h.adminId },
+    });
+    expect(response.status()).toBe(204);
+  });
+
+  test('a member cannot rename the household, change its split, or remove anyone', async ({ request }) => {
+    const h = await household(request);
+
+    expect(
+      (await request.put('/api/household', { headers: { cookie: h.member }, data: { name: 'Kapat' } })).status(),
+    ).toBe(403);
+    expect(
+      (await request.put('/api/household/split', { headers: { cookie: h.member }, data: { split: 'even' } })).status(),
+    ).toBe(403);
+    expect(
+      (await request.delete(`/api/members/${h.adminId}`, { headers: { cookie: h.member } })).status(),
+    ).toBe(403);
+  });
+
+  test('a member may still save their own preferences', async ({ request }) => {
+    const h = await household(request);
+
+    const response = await request.put(`/api/members/${h.memberId}`, {
+      headers: { cookie: h.member },
+      data: {
+        id: h.memberId,
+        name: 'Petra',
+        email: h.memberEmail,
+        role: 'member',
+        status: 'active',
+        baselineIncome: 25500,
+        language: 'en',
+        theme: 'dark',
+        emailReminders: false,
+      },
+    });
+    expect(response.status()).toBe(204);
+
+    const budget = await (await request.get('/api/budget', { headers: { cookie: h.member } })).json();
+    const me = budget.members.find((m: { id: string }) => m.id === h.memberId);
+    expect(me.language).toBe('en');
+    expect(me.emailReminders).toBe(false);
+  });
+});

@@ -151,6 +151,11 @@ const int emailLimit = 254;
 const int memberLimit = 5;
 const int invitesPerDay = 10;
 
+// Refused rather than unauthorized: the caller is who they say they are, they are
+// just not allowed to do this.
+IResult Forbidden() =>
+    Results.Json(new ErrorResponse("Bara administratörer kan göra det."), statusCode: 403);
+
 var api = app.MapGroup("/api");
 
 api.MapGet("/budget", async (HttpContext ctx, BudgetStore store, SessionTokens sessions, CancellationToken ct) =>
@@ -168,6 +173,7 @@ api.MapPut("/household", async (
 {
     var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
+    if (!caller.IsAdmin) return Forbidden();
 
     var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
     if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
@@ -227,16 +233,34 @@ api.MapPut("/members/{id}", async (
     if (member.Name.Length is 0 or > nameLimit || member.Email.Length is 0 or > emailLimit)
         return Results.Json(new ErrorResponse("Namnet eller adressen är för lång."), statusCode: 400);
 
+    var self = caller.Member?.Id == id;
+    if (!caller.IsAdmin && !self) return Forbidden();
+
+    // Editing yourself is how preferences are saved, so it cannot be admin-only.
+    // Everything that decides what someone is allowed to do, or is owed, is taken
+    // from the stored record instead of the request: otherwise the smallest write
+    // in the app is also the one that grants an admin role.
+    var current = await s.GetMemberAsync(caller.HouseholdId, id, ct);
+    if (!caller.IsAdmin && current is not null)
+    {
+        member = member with
+        {
+            Role = current.Role,
+            Status = current.Status,
+            Email = current.Email,
+            BaselineIncome = current.BaselineIncome,
+        };
+    }
+
     var existing = await s.GetProfileAsync(member.Email, ct);
 
     if (existing is not null && existing.HouseholdId != caller.HouseholdId)
         return Results.Conflict(new ErrorResponse("Adressen tillhör redan ett annat hushåll."));
 
     var isNew = existing is null;
-    var previous = await s.GetMemberAsync(caller.HouseholdId, id, ct);
 
     // Counted before the write, so the cap holds however many members already exist.
-    if (isNew && previous is null)
+    if (isNew && current is null)
     {
         var budget = await s.GetBudgetAsync(caller.HouseholdId, null, ct);
         if (budget is not null && budget.Members.Count >= memberLimit)
@@ -250,10 +274,10 @@ api.MapPut("/members/{id}", async (
     // An address is what the session is resolved against, so the one being replaced
     // has to stop resolving. Left behind, the old Google account keeps signing in to
     // this household for good, and deleting the member later would not reach it.
-    if (previous is not null &&
-        !string.Equals(previous.Email, member.Email, StringComparison.OrdinalIgnoreCase))
+    if (current is not null &&
+        !string.Equals(current.Email, member.Email, StringComparison.OrdinalIgnoreCase))
     {
-        await s.DeleteProfileAsync(previous.Email, ct);
+        await s.DeleteProfileAsync(current.Email, ct);
     }
 
     if (isNew)
@@ -305,6 +329,7 @@ api.MapPost("/members/{id}/invite", async (
 {
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
+    if (!caller.IsAdmin) return Forbidden();
     // ErrorResponse rather than Results.Problem: ProblemDetails is not in the
     // source-generated context, so it compiles and then throws under AOT.
     if (!emailEnabled)
@@ -353,6 +378,7 @@ api.MapDelete("/members/{id}", async (
 {
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
+    if (!caller.IsAdmin) return Forbidden();
 
     // The profile has to go too, or a removed member can still sign back in.
     var member = await s.GetMemberAsync(caller.HouseholdId, id, ct);
@@ -393,6 +419,7 @@ api.MapPut("/household/split", async (
 {
     var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
+    if (!caller.IsAdmin) return Forbidden();
 
     string[] allowed = ["equalLeftover", "byIncome", "even"];
     if (!allowed.Contains(request.Split))
@@ -504,12 +531,12 @@ api.MapDelete("/streams/{id}", async (string id, HttpContext ctx, BudgetStore s,
 api.MapPut("/income/{month}/{memberId}", async (
     string month, string memberId, PutIncomeRequest body,
     HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
-    await Write(ctx, s, t, ct, h =>
+    await WriteIncome(ctx, s, t, memberId, ct, h =>
         s.PutIncomeAsync(h, new IncomeEntry(memberId, month, body.Amount, body.EnteredById), ct)));
 
 api.MapDelete("/income/{month}/{memberId}", async (
     string month, string memberId, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
-    await Write(ctx, s, t, ct, h => s.DeleteIncomeAsync(h, month, memberId, ct)));
+    await WriteIncome(ctx, s, t, memberId, ct, h => s.DeleteIncomeAsync(h, month, memberId, ct)));
 
 
 app.Run();
@@ -524,6 +551,27 @@ async Task<IResult> Write(
 {
     var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
+    await action(caller.HouseholdId);
+    return Results.NoContent();
+}
+
+/// <summary>
+/// A figure is about one member, and it is the number their share is worked out
+/// from. Your own, or anyone's if you are an admin, which is what the banner in the
+/// app has always offered and what the README has always claimed.
+/// </summary>
+async Task<IResult> WriteIncome(
+    HttpContext ctx,
+    BudgetStore store,
+    SessionTokens sessions,
+    string memberId,
+    CancellationToken ct,
+    Func<string, Task> action)
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+    if (!caller.IsAdmin && caller.Member?.Id != memberId) return Forbidden();
+
     await action(caller.HouseholdId);
     return Results.NoContent();
 }

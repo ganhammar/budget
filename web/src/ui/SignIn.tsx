@@ -19,7 +19,6 @@ interface GoogleAccounts {
         client_id: string;
         callback: (response: GoogleCredentialResponse) => void;
         auto_select?: boolean;
-challenge?: string;
       }) => void;
       renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
     };

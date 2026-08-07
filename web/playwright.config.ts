@@ -36,8 +36,12 @@ export default defineConfig({
         TABLE_NAME: process.env.TABLE_NAME ?? 'budget-e2e',
         GOOGLE_CLIENT_ID: 'e2e.apps.googleusercontent.com',
         EMAIL_ENABLED: 'false',
+        // Nothing here talks to AWS, but the API builds its SES client at startup
+        // and a client with no region refuses to be constructed. The .NET SDK reads
+        // AWS_REGION; AWS_DEFAULT_REGION is the CLI's spelling and is not enough.
         AWS_ACCESS_KEY_ID: 'local',
         AWS_SECRET_ACCESS_KEY: 'local',
+        AWS_REGION: 'eu-north-1',
         AWS_DEFAULT_REGION: 'eu-north-1',
       },
     },
