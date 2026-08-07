@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using Amazon.DynamoDBv2;
+using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
@@ -128,9 +129,20 @@ app.MapPost("/api/households", async (
     var household = new Household(householdId, householdName, DateTime.UtcNow.ToString("yyyy-MM"));
     var member = new Member(memberId, callerName, email, "admin", "active", 0m);
 
-    await store.PutMetaAsync(new BudgetMeta(household, null), ct);
-    await store.PutMemberAsync(householdId, member, ct);
-    await store.PutProfileAsync(new UserProfile(email, householdId, memberId), ct);
+    try
+    {
+        await store.CreateHouseholdAsync(
+            new BudgetMeta(household, null),
+            member,
+            new UserProfile(email, householdId, memberId),
+            ct);
+    }
+    catch (TransactionCanceledException)
+    {
+        // The only condition on the transaction is that the address is not already
+        // in a household, so this is the second of two racing requests.
+        return Results.Conflict(new ErrorResponse("Du tillhör redan ett hushåll."));
+    }
 
     var budget = await store.GetBudgetAsync(householdId, memberId, ct);
     return budget is null

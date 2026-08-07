@@ -327,6 +327,65 @@ public sealed class BudgetStore(IAmazonDynamoDB client, string tableName)
 
     /* ---------- Collections ---------- */
 
+    /// <summary>
+    /// Writes the three rows a household is made of at once.
+    ///
+    /// Separately, a failure between them leaves something unusable: meta with no
+    /// member, or a member nobody's address maps to. Nothing in the app can repair
+    /// that, and the person it happens to cannot create another household because
+    /// the profile pointing at the broken one already exists.
+    /// </summary>
+    public Task CreateHouseholdAsync(
+        BudgetMeta meta, Member member, UserProfile profile, CancellationToken ct)
+    {
+        var householdId = meta.Household.Id;
+
+        return client.TransactWriteItemsAsync(
+            new TransactWriteItemsRequest
+            {
+                TransactItems =
+                [
+                    new TransactWriteItem
+                    {
+                        Put = new Put
+                        {
+                            TableName = tableName,
+                            Item = Item(
+                                HouseholdKey(householdId),
+                                Meta,
+                                JsonSerializer.Serialize(meta, AppJsonContext.Default.BudgetMeta)),
+                        },
+                    },
+                    new TransactWriteItem
+                    {
+                        Put = new Put
+                        {
+                            TableName = tableName,
+                            Item = Item(
+                                HouseholdKey(householdId),
+                                $"MEMBER#{member.Id}",
+                                JsonSerializer.Serialize(member, AppJsonContext.Default.Member)),
+                        },
+                    },
+                    new TransactWriteItem
+                    {
+                        Put = new Put
+                        {
+                            TableName = tableName,
+                            Item = Item(
+                                UserKey(profile.Email),
+                                Profile,
+                                JsonSerializer.Serialize(profile, AppJsonContext.Default.UserProfile)),
+                            // Two tabs pressing create at once should make one
+                            // household, not overwrite the first with the second.
+                            ConditionExpression = "attribute_not_exists(pk)",
+                        },
+                    },
+                ],
+            },
+            ct);
+    }
+
     public Task PutMemberAsync(string householdId, Member member, CancellationToken ct) =>
         Put(HouseholdKey(householdId), $"MEMBER#{member.Id}",
             JsonSerializer.Serialize(member, AppJsonContext.Default.Member), ct);

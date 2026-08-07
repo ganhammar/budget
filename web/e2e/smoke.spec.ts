@@ -88,6 +88,16 @@ test.describe('signed in', () => {
     expect((await add()).status()).toBe(409);
   });
 
+  test('a second household for the same address is refused', async ({ request }) => {
+    const email = `${unique('twice')}@e2e.se`;
+    const cookie = `budget_session=${devSessionCookie(email)}`;
+
+    expect((await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).status())
+      .toBe(201);
+    expect((await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).status())
+      .toBe(409);
+  });
+
   test('refuses a name longer than an invite mail should carry', async ({ request }) => {
     const email = `${unique('long')}@e2e.se`;
     const response = await request.post('/api/households', {

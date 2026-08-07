@@ -56,6 +56,24 @@ jobs:
 
       - run: dotnet test api/Budget.slnx --configuration Release
 
+      # Advisory rather than a gate: a new advisory should not be able to stop a
+      # fix from shipping. Dependabot opens the pull requests; this is what makes
+      # a known-vulnerable dependency visible in the meantime.
+      - name: Check for vulnerable packages
+        continue-on-error: true
+        run: dotnet list api/Budget.slnx package --vulnerable --include-transitive
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Check for vulnerable npm packages
+        continue-on-error: true
+        run: npm audit --audit-level=high
+        working-directory: web
+
   e2e:
     # The whole path: a browser, the dev server's proxy, the API, and a real
     # DynamoDB. It is the only place the wiring between them is exercised.

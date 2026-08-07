@@ -1,0 +1,32 @@
+# Weekly rather than daily: this is a two-person app, and a pull request nobody
+# looks at is worse than none. Grouped so a week of updates is one review.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /infra
+    schedule:
+      interval: weekly
+    groups:
+      infra:
+        patterns: ['*']
+
+  - package-ecosystem: nuget
+    directory: /api
+    schedule:
+      interval: weekly
+    groups:
+      api:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
