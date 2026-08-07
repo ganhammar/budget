@@ -120,7 +120,7 @@ app.MapPost("/api/households", async (
     var householdName = request.HouseholdName.Trim();
     var callerName = request.Name.Trim();
     if (householdName.Length is 0 or > 60 || callerName.Length is 0 or > 60)
-        return Results.Json(new ErrorResponse("Namnet är för långt."), statusCode: 400);
+        return Error("Namnet är för långt.", 400);
 
     var email = caller.Email!;
     var householdId = Guid.NewGuid().ToString();
@@ -146,7 +146,7 @@ app.MapPost("/api/households", async (
 
     var budget = await store.GetBudgetAsync(householdId, memberId, ct);
     return budget is null
-        ? Results.Problem("Hushållet kunde inte läsas tillbaka.")
+        ? Error("Hushållet kunde inte läsas tillbaka.", 500)
         : Results.Created("/api/budget", budget);
 });
 
@@ -163,10 +163,22 @@ const int emailLimit = 254;
 const int memberLimit = 5;
 const int invitesPerDay = 10;
 
+/*
+ * Every error body goes through here, naming the source-generated metadata for
+ * ErrorResponse.
+ *
+ * The overload that takes only a value reflects over the type, which is a warning
+ * at build time and a NotSupportedException at run time once trimmed. Results.Problem
+ * is the same trap with no warning at all: ProblemDetails is not in the context, so
+ * it compiles and throws the first time that path is taken.
+ */
+IResult Error(string message, int statusCode) =>
+    Results.Json(
+        new ErrorResponse(message), AppJsonContext.Default.ErrorResponse, statusCode: statusCode);
+
 // Refused rather than unauthorized: the caller is who they say they are, they are
 // just not allowed to do this.
-IResult Forbidden() =>
-    Results.Json(new ErrorResponse("Bara administratörer kan göra det."), statusCode: 403);
+IResult Forbidden() => Error("Bara administratörer kan göra det.", 403);
 
 var api = app.MapGroup("/api");
 
@@ -243,7 +255,7 @@ api.MapPut("/members/{id}", async (
 
     var member = (body with { Id = id, Name = body.Name.Trim(), Email = body.Email.Trim() });
     if (member.Name.Length is 0 or > nameLimit || member.Email.Length is 0 or > emailLimit)
-        return Results.Json(new ErrorResponse("Namnet eller adressen är för lång."), statusCode: 400);
+        return Error("Namnet eller adressen är för lång.", 400);
 
     var self = caller.Member?.Id == id;
     if (!caller.IsAdmin && !self) return Forbidden();
@@ -276,9 +288,7 @@ api.MapPut("/members/{id}", async (
     {
         var budget = await s.GetBudgetAsync(caller.HouseholdId, null, ct);
         if (budget is not null && budget.Members.Count >= memberLimit)
-            return Results.Json(
-                new ErrorResponse($"Ett hushåll kan ha högst {memberLimit} medlemmar."),
-                statusCode: 409);
+            return Error($"Ett hushåll kan ha högst {memberLimit} medlemmar.", 409);
     }
 
     await s.PutMemberAsync(caller.HouseholdId, member, ct);
@@ -345,7 +355,7 @@ api.MapPost("/members/{id}/invite", async (
     // ErrorResponse rather than Results.Problem: ProblemDetails is not in the
     // source-generated context, so it compiles and then throws under AOT.
     if (!emailEnabled)
-        return Results.Json(new ErrorResponse("E-post är avstängt i den här miljön."), statusCode: 503);
+        return Error("E-post är avstängt i den här miljön.", 503);
 
     var member = await s.GetMemberAsync(caller.HouseholdId, id, ct);
     if (member is null) return Results.NotFound(new ErrorResponse("Medlemmen finns inte."));
@@ -361,9 +371,7 @@ api.MapPost("/members/{id}/invite", async (
     var sent = await s.CountInviteAsync(
         caller.HouseholdId, DateOnly.FromDateTime(DateTime.UtcNow), ct);
     if (sent > invitesPerDay)
-        return Results.Json(
-            new ErrorResponse("För många inbjudningar idag. Försök igen imorgon."),
-            statusCode: 429);
+        return Error("För många inbjudningar idag. Försök igen imorgon.", 429);
 
     var meta = await s.GetMetaAsync(caller.HouseholdId, ct);
     var invite = Messages.Invite(
@@ -379,7 +387,7 @@ api.MapPost("/members/{id}/invite", async (
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "Could not send invite to {Email}", member.Email);
-        return Results.Json(new ErrorResponse("Inbjudan kunde inte skickas."), statusCode: 502);
+        return Error("Inbjudan kunde inte skickas.", 502);
     }
 
     return Results.NoContent();
@@ -435,7 +443,7 @@ api.MapPut("/household/split", async (
 
     string[] allowed = ["equalLeftover", "byIncome", "even"];
     if (!allowed.Contains(request.Split))
-        return Results.Json(new ErrorResponse("Okänd fördelningsregel."), statusCode: 400);
+        return Error("Okänd fördelningsregel.", 400);
 
     var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
     if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
@@ -455,7 +463,7 @@ api.MapPut("/household/split", async (
 // one. Push is optional, so that is every environment without a VAPID key.
 api.MapGet("/push/key", ([FromServices] PushSender? push) =>
     push is null
-        ? Results.Json(new ErrorResponse("Push är inte konfigurerat."), statusCode: 503)
+        ? Error("Push är inte konfigurerat.", 503)
         : Results.Ok(new PushKeyResponse(push.PublicKey)));
 
 api.MapPut("/push", async (
@@ -465,7 +473,7 @@ api.MapPut("/push", async (
     if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
 
     if (!PushSender.IsKnownEndpoint(body.Endpoint))
-        return Results.Json(new ErrorResponse("Okänd push-tjänst."), statusCode: 400);
+        return Error("Okänd push-tjänst.", 400);
 
     await s.PutPushSubscriptionAsync(
         caller.HouseholdId,
@@ -493,11 +501,11 @@ api.MapPost("/push/test", async (
     var caller = await CallerResolver.ResolveAsync(ctx, s, t, ct);
     if (!caller.HasHousehold || caller.Member is null) return Results.Unauthorized();
     if (push is null)
-        return Results.Json(new ErrorResponse("Push är inte konfigurerat."), statusCode: 503);
+        return Error("Push är inte konfigurerat.", 503);
 
     var subscriptions = await s.ListPushSubscriptionsAsync(caller.HouseholdId, caller.Member.Id, ct);
     if (subscriptions.Count == 0)
-        return Results.Json(new ErrorResponse("Ingen enhet är ansluten."), statusCode: 404);
+        return Error("Ingen enhet är ansluten.", 404);
 
     var language = caller.Member.Language;
     var message = Messages.PushTest(language);
@@ -513,7 +521,7 @@ api.MapPost("/push/test", async (
 
     return delivered > 0
         ? Results.NoContent()
-        : Results.Json(new ErrorResponse("Notisen kunde inte skickas."), statusCode: 502);
+        : Error("Notisen kunde inte skickas.", 502);
 });
 
 api.MapPut("/costs/{id}", async (string id, RecurringCost body, HttpContext ctx, BudgetStore s, SessionTokens t, CancellationToken ct) =>
