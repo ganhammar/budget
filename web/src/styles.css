@@ -120,11 +120,11 @@ body {
   right: 0;
   z-index: 20;
   display: flex;
-  /* Equal columns rather than links sized to their words. "Lån" is three letters
-     and was a 39px target, under the 44px a thumb needs, and the Swedish labels
-     together overflowed a 320px screen. Columns make every target the same and
-     leave no gaps between them. */
-  padding: 0 0 env(safe-area-inset-bottom);
+  /* Held to the same column as everything else. The topbar sits inside .app and
+     rules to 640px; a bar running the whole window under it was the odd one out. */
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 20px env(safe-area-inset-bottom);
   background: var(--paper);
   border-top: 1.5px solid var(--rule-strong);
 }
@@ -134,7 +134,7 @@ body {
      would be tidier but force the longest label into the narrowest column, and
      "Kostnader" does not fit one on a small phone. */
   flex: 1 1 auto;
-  min-width: 56px;
+  min-width: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
