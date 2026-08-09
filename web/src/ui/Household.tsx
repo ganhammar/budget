@@ -3,7 +3,7 @@ import { useBudget, newId } from '../store/store';
 import type { Member, Role, SplitRule } from '../domain/types';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
-import { bufferGoal } from '../domain/engine';
+import { bufferGoal, bufferMonthsOf, estimatedBalance } from '../domain/engine';
 import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
 import { api } from '../api/client';
 import { useText } from '../i18n';
@@ -113,8 +113,9 @@ export function Household() {
 
   const adminCount = budget.members.filter((m) => m.role === 'admin').length;
   const balance = budget.accountBalance;
-  const months = budget.household.bufferMonths;
+  const months = bufferMonthsOf(budget);
   const goal = bufferGoal(budget, currentMonth());
+  const estimated = estimatedBalance(budget, currentMonth());
   const split = budget.household.split ?? 'equalLeftover';
 
   return (
@@ -187,30 +188,41 @@ export function Household() {
         <div className="household-balance">
           <h3>{t.jointAccount}</h3>
           <ListRow
-            title={balance ? t.balanceAsOf(formatMonth(balance.month)) : t.jointAccount}
-            subtitle={balance ? undefined : t.balanceUnset}
-            amount={balance ? sek(balance.amount) : '—'}
+            title={balance ? t.estimatedToday : t.jointAccount}
+            subtitle={
+              balance
+                ? t.estimatedFrom(formatMonth(balance.month), sek(balance.amount))
+                : t.balanceUnset
+            }
+            amount={estimated !== null ? sek(estimated) : '—'}
             onClick={() => setEditingBalance(true)}
           />
 
           {/* A goal for the figure above it, so it sits with it. Any member may set
               it: the account is shared and so is the responsibility for it. */}
-          <Field
-            label={t.bufferGoalLabel}
-            hint={goal > 0 ? t.bufferHint(sek(goal)) : t.bufferHintUnset}
-          >
-            <select
-              value={months ?? ''}
-              onChange={(e) => setBufferMonths(Number(e.target.value))}
+          <div className="household-buffer">
+            <Field
+              label={t.bufferGoalLabel}
+              hint={goal > 0 ? t.bufferHint(sek(goal)) : t.bufferHintOff}
             >
-              {months === undefined && <option value="">{t.bufferUnset}</option>}
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>
-                  {t.bufferMonths(m)}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <select value={months} onChange={(e) => setBufferMonths(Number(e.target.value))}>
+                <option value={0}>{t.bufferOff}</option>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={m}>
+                    {t.bufferMonths(m)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            {/* Says what it is for, and what it depends on. The figure is only as
+                good as the costs behind it. */}
+            {goal > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <Note>{t.bufferExplainer}</Note>
+              </div>
+            )}
+          </div>
         </div>
 
         {!isAdmin && (

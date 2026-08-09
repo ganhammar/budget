@@ -306,7 +306,12 @@ console.log('\n— The buffer —');
   }, MONTH), average, 0.001);
 
   check('goal is that many months of it', bufferGoal(withGoal, MONTH), average * goalMonths, 0.001);
-  check('no goal, no target', bufferGoal(sheetBudget, MONTH), 0, 0.001);
+  // Absent is the default of one month, not none. Zero is the deliberate none.
+  check('absent means one month', bufferGoal(sheetBudget, MONTH), average, 0.001);
+  check('zero means none', bufferGoal({
+    ...sheetBudget,
+    household: { ...sheetBudget.household, bufferMonths: 0 },
+  }, MONTH), 0, 0.001);
 
   /*
    * The share is the product of how good the month was and how much room is left,
@@ -381,6 +386,42 @@ console.log('\n— The buffer —');
   const plain = calculateMonth(sheetBudget, MONTH);
   const topped = calculateMonth(sheetBudget, MONTH, 2000);
   check('the top-up is added to the costs', topped.totalCosts - plain.totalCosts, 2000, 0.001);
+
+  /*
+   * A month that has already gone well lifts every point after it, while the
+   * months ahead assume nothing: they are estimated at normal income and so are
+   * never good ones.
+   */
+  {
+    const base = {
+      ...withGoal,
+      accountBalance: { month: MONTH, amount: 10000 },
+    };
+    const flat = forecast(base, 6);
+
+    const goodMonth = {
+      ...base,
+      income: [
+        { memberId: ANTON, month: MONTH, amount: 78000, enteredById: null },
+        { memberId: PETRA, month: MONTH, amount: 37887, enteredById: null },
+      ],
+    };
+    const lifted = forecast(goodMonth, 6);
+    const setAside = lifted[0].bufferTopUp;
+
+    check('a good month sets something aside', setAside > 0 ? 1 : 0, 1, 0);
+    check('nothing is set aside in the months ahead', lifted.slice(1).reduce((n, p) => n + p.bufferTopUp, 0), 0, 0.001);
+    check('the month it happened closes higher', lifted[0].closing - flat[0].closing, setAside, 0.001);
+    check('and so does every month after it', lifted[5].closing - flat[5].closing, setAside, 0.001);
+
+    // Skipping the month puts the line back exactly where it was.
+    const skipped = forecast({
+      ...goodMonth,
+      household: { ...goodMonth.household, bufferSkipped: [MONTH] },
+    }, 6);
+    check('skipping sets nothing aside', skipped[0].bufferTopUp, 0, 0.001);
+    check('and leaves the line where it was', skipped[5].closing, flat[5].closing, 0.001);
+  }
   check('and to what reaches the account', topped.jointInflow - plain.jointInflow, 2000, 0.001);
   check('leaving that much less over', plain.surplus - topped.surplus, 2000, 0.001);
 }

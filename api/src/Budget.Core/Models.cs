@@ -16,8 +16,13 @@ public sealed record Household(
     string Created,
     List<string>? Categories = null,
     string? Split = null,
-    /// <summary>Months of commitments to keep in the joint account, 1 to 12.</summary>
-    int? BufferMonths = null);
+    /// <summary>
+    /// Months of commitments to keep in the joint account. Null is the default of
+    /// one month; zero is the deliberate choice to keep none.
+    /// </summary>
+    int? BufferMonths = null,
+    /// <summary>Months the household chose not to set anything aside in.</summary>
+    List<string>? BufferSkipped = null);
 
 /// <summary>
 /// Preferences are optional: records written before they existed simply have null,
@@ -164,6 +169,8 @@ public sealed record CategoriesRequest(List<string> Categories);
 public sealed record SplitRequest(string Split);
 
 public sealed record BufferRequest(int Months);
+
+public sealed record BufferSkipRequest(string Month, bool Skip);
 
 public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth);
 

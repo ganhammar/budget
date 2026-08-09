@@ -608,11 +608,29 @@ export function averageCommitment(budget: Budget, from: Month): number {
   return total / months.length;
 }
 
-/** The balance the household is aiming to keep, or 0 when no goal is set. */
+/**
+ * Months of commitments the household keeps in the account.
+ *
+ * Absent is one month rather than none: a household that has never thought about
+ * it is better off with a small buffer than with nothing. Zero is the deliberate
+ * choice to have none, which is why absent and zero cannot mean the same thing.
+ */
+export const DEFAULT_BUFFER_MONTHS = 1;
+
+export function bufferMonthsOf(budget: Budget): number {
+  return budget.household.bufferMonths ?? DEFAULT_BUFFER_MONTHS;
+}
+
+/** The balance the household is aiming to keep, or 0 when it has turned it off. */
 export function bufferGoal(budget: Budget, from: Month): number {
-  const months = budget.household.bufferMonths;
-  if (!months) return 0;
+  const months = bufferMonthsOf(budget);
+  if (months <= 0) return 0;
   return averageCommitment(budget, from) * months;
+}
+
+/** Whether the household opted out of setting anything aside this month. */
+export function bufferSkipped(budget: Budget, month: Month): boolean {
+  return (budget.household.bufferSkipped ?? []).includes(month);
 }
 
 /** The most that would ever be taken from a single month. */
@@ -659,6 +677,21 @@ export function bufferTopUp(
   return Math.round(Math.min(excess * share, gap) / 100) * 100;
 }
 
+/**
+ * What the account is expected to hold now, worked forward from the last balance
+ * anyone wrote down. The entered figure is a reading taken on a date; this is what
+ * the months since then should have done to it.
+ */
+export function estimatedBalance(budget: Budget, today: Month): number | null {
+  if (!budget.accountBalance) return null;
+  if (toIndex(today) <= toIndex(budget.accountBalance.month)) {
+    return budget.accountBalance.amount;
+  }
+
+  const points = forecast(budget, monthsBetween(budget.accountBalance.month, today) + 1);
+  return points.find((p) => p.month === today)?.opening ?? budget.accountBalance.amount;
+}
+
 /** What the household brings in in an ordinary month, before anything is confirmed. */
 export function normalIncome(budget: Budget): number {
   return activeMembers(budget).reduce((sum, m) => sum + m.baselineIncome, 0);
@@ -685,26 +718,51 @@ export interface ForecastPoint {
   opening: number;
   inflow: number;
   outflow: number;
+  /** Set aside into the account this month, already counted in `inflow`. */
+  bufferTopUp: number;
   closing: number;
   items: { label: string; amount: number; oneOff?: boolean }[];
 }
 
+/**
+ * The account month by month, from the last balance anyone recorded.
+ *
+ * The buffer is worked out here, inside the walk, because what it sets aside
+ * depends on the balance and the balance depends on what it has already set
+ * aside. Each month is decided against the balance the months before it produced.
+ *
+ * Only months that actually went well contribute. A future month is estimated at
+ * normal income and so is never a good one, which is what keeps the line ahead of
+ * today free of assumptions while a month that has already gone well lifts every
+ * point after it.
+ */
 export function forecast(budget: Budget, months: number): ForecastPoint[] {
   if (!budget.accountBalance) return [];
 
   const from = budget.accountBalance.month;
   const results = calculateRange(budget, from, addMonths(from, months - 1));
 
+  const goal = bufferGoal(budget, from);
+  const normal = normalIncome(budget);
+
   let balance = budget.accountBalance.amount;
   return results.map((result) => {
     const opening = balance;
-    const closing = opening + result.jointInflow - result.jointOutflow;
+    const topUp = bufferSkipped(budget, result.month)
+      ? 0
+      : bufferTopUp(goal, opening, incomeAboveNormal(budget, result.month), normal);
+
+    // Everything set aside is transferred in and stays there, so it lands in the
+    // account whole rather than being netted against anything going out.
+    const inflow = result.jointInflow + topUp;
+    const closing = opening + inflow - result.jointOutflow;
     balance = closing;
     return {
       month: result.month,
       opening,
-      inflow: result.jointInflow,
+      inflow,
       outflow: result.jointOutflow,
+      bufferTopUp: topUp,
       closing,
       // Only the lumpy items are worth surfacing in the chart tooltip.
       items: result.outflowItems

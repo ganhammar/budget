@@ -362,7 +362,7 @@ test.describe('first steps', () => {
 });
 
 test.describe('buffer', () => {
-  test('any member may set the goal, and only within one to twelve months', async ({ request }) => {
+  test('any member may set the goal, and only within none to twelve months', async ({ request }) => {
     const email = `${unique('bufadmin')}@e2e.se`;
     const admin = `budget_session=${devSessionCookie(email)}`;
     const created = await request.post('/api/households', { headers: { cookie: admin }, data: HOUSEHOLD });
@@ -380,7 +380,13 @@ test.describe('buffer', () => {
     expect((await request.put('/api/household/buffer', { headers: { cookie: member }, data: { months: 3 } })).status())
       .toBe(204);
 
-    for (const months of [0, -1, 13]) {
+    // Zero is a real answer: it means no buffer, which is not the same as never
+    // having chosen, and that is what the default of one month covers.
+    expect((await request.put('/api/household/buffer', { headers: { cookie: admin }, data: { months: 0 } })).status())
+      .toBe(204);
+    await request.put('/api/household/buffer', { headers: { cookie: member }, data: { months: 3 } });
+
+    for (const months of [-1, 13]) {
       expect((await request.put('/api/household/buffer', { headers: { cookie: admin }, data: { months } })).status())
         .toBe(400);
     }
@@ -415,4 +421,36 @@ test.describe('buffer', () => {
     await page.reload();
     await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();
   });
+});
+
+test('a month can opt out of its own buffer', async ({ page, context, request }) => {
+  const email = `${unique('skip')}@e2e.se`;
+  const cookie = `budget_session=${devSessionCookie(email)}`;
+  await signIn(context, email);
+  const budget = await (await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).json();
+  const me = budget.members[0];
+  await request.put(`/api/members/${me.id}`, { headers: { cookie }, data: { ...me, baselineIncome: 48000 } });
+
+  const costId = unique('c');
+  await request.put(`/api/costs/${costId}`, {
+    headers: { cookie },
+    data: { id: costId, category: 'Boende', description: 'Hyra', amount: 12000, intervalMonths: 1, firstCharge: '2026-01', payerId: null },
+  });
+
+  const month = new Date().toISOString().slice(0, 7);
+  await request.put('/api/account-balance', { headers: { cookie }, data: { month, amount: 5000 } });
+  await request.put(`/api/income/${month}/${me.id}`, { headers: { cookie }, data: { amount: 58000, enteredById: null } });
+
+  await page.goto('/');
+  await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /hoppa över|skip this month/i }).click();
+  await expect(page.getByText(/Ingen buffert den här månaden|No buffer this month/i)).toBeVisible();
+
+  // It is the household's answer, not this browser's.
+  await page.reload();
+  await expect(page.getByText(/Ingen buffert den här månaden|No buffer this month/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /ångra|undo/i }).click();
+  await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();
 });

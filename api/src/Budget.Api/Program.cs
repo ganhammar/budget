@@ -496,16 +496,40 @@ api.MapPut("/household/buffer", async (
     var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
     if (!caller.HasHousehold) return Results.Unauthorized();
 
-    // No zero: a household with no buffer has no goal, which is the absent value,
-    // not a goal of nothing.
-    if (request.Months is < 1 or > 12)
-        return Error("Målet är mellan 1 och 12 månader.", 400);
+    // Zero is allowed and means none. It is a different thing from the field never
+    // having been set, which means the default.
+    if (request.Months is < 0 or > 12)
+        return Error("Målet är mellan 0 och 12 månader.", 400);
 
     var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
     if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
 
     await store.PutMetaAsync(
         meta with { Household = meta.Household with { BufferMonths = request.Months } }, ct);
+    return Results.NoContent();
+});
+
+// A month can opt out of its own contribution. Kept on the household rather than
+// on the device, because it changes what both members transfer.
+api.MapPut("/household/buffer/skip", async (
+    BufferSkipRequest request, HttpContext ctx, BudgetStore store, SessionTokens sessions,
+    CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+
+    if (request.Month.Length != 7 || request.Month[4] != '-')
+        return Error("Ogiltig månad.", 400);
+
+    var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
+    if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
+
+    var skipped = new List<string>(meta.Household.BufferSkipped ?? []);
+    skipped.Remove(request.Month);
+    if (request.Skip) skipped.Add(request.Month);
+
+    await store.PutMetaAsync(
+        meta with { Household = meta.Household with { BufferSkipped = skipped } }, ct);
     return Results.NoContent();
 });
 

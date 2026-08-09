@@ -80,6 +80,12 @@ export const api = {
   setBuffer: (months: number) =>
     request<void>('/household/buffer', { method: 'PUT', body: JSON.stringify({ months }) }),
 
+  skipBuffer: (month: string, skip: boolean) =>
+    request<void>('/household/buffer/skip', {
+      method: 'PUT',
+      body: JSON.stringify({ month, skip }),
+    }),
+
   setSplit: (split: string) =>
     request<void>('/household/split', { method: 'PUT', body: JSON.stringify({ split }) }),
 

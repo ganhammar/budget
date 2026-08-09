@@ -275,6 +275,45 @@ body {
   border-top: 1px solid var(--rule);
 }
 
+/* The goal is a separate thought from the reading above it, and was sitting on
+   top of the rule that closes it. */
+.estimated-now {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.estimated-now .label {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.estimated-now .value {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The note and its way out sit on one line, so the opt-out is next to the thing
+   it opts out of rather than under it. */
+.buffer-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.buffer-note .btn {
+  flex: 0 0 auto;
+}
+
+.household-buffer {
+  margin-top: 22px;
+}
+
 /* Matches the label above a field, so the section reads like the ones near it. */
 .household-balance h3 {
   font-family: var(--serif);

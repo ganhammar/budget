@@ -27,11 +27,12 @@ export interface Household {
   /** Absent means `equalLeftover`, which is what every household had before this. */
   split?: SplitRule;
   /**
-   * Months of commitments to keep in the joint account, 1 to 12. Absent means no
-   * goal has been chosen and nothing is set aside; there is deliberately no zero,
-   * because a household with no buffer is not a setting worth offering.
+   * Months of commitments to keep in the joint account. Absent means the default
+   * of one month; zero means the household has turned it off deliberately.
    */
   bufferMonths?: number;
+  /** Months the household chose to skip, so a tight month can opt out of its own. */
+  bufferSkipped?: Month[];
 }
 
 /**

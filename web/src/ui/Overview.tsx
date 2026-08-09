@@ -1,12 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useBudget } from '../store/store';
 import {
-  bufferGoal,
-  bufferTopUp,
+  bufferSkipped,
   calculateMonth,
+  estimatedBalance,
   forecast,
-  incomeAboveNormal,
-  normalIncome,
   savingsTotal,
 } from '../domain/engine';
 import { sek } from '../domain/format';
@@ -20,34 +18,30 @@ import { useText } from '../i18n';
 const FORECAST_MONTHS = 24;
 
 export function Overview() {
-  const { budget, me } = useBudget();
+  const { budget, me, update } = useBudget();
   const t = useText();
   const [month, setMonth] = useState(currentMonth());
   const [showTable, setShowTable] = useState(false);
 
   const points = useMemo(() => forecast(budget, FORECAST_MONTHS), [budget]);
 
-  /*
-   * A good month pays a little towards the buffer. Worked out here rather than in
-   * the engine because it needs the account balance, which comes from the forecast,
-   * which is built from the engine's own results.
-   *
-   * The forecast itself is left alone: future months are estimated at normal
-   * income and so are never good ones, which keeps projections conservative and
-   * means the buffer only ever appears once a month has actually gone well.
-   */
-  const topUp = useMemo(() => {
-    const opening = points.find((p) => p.month === month)?.opening;
-    if (opening === undefined) return 0;
-    return bufferTopUp(
-      bufferGoal(budget, month),
-      opening,
-      incomeAboveNormal(budget, month),
-      normalIncome(budget),
-    );
-  }, [budget, month, points]);
+  // Read from the forecast rather than worked out again here, so the figure in the
+  // transfer and the figure in the chart can never disagree.
+  const topUp = points.find((p) => p.month === month)?.bufferTopUp ?? 0;
+  const skipped = bufferSkipped(budget, month);
+  const estimated = estimatedBalance(budget, currentMonth());
 
   const result = useMemo(() => calculateMonth(budget, month, topUp), [budget, month, topUp]);
+
+  function setSkipped(skip: boolean) {
+    update((b) => {
+      const rest = (b.household.bufferSkipped ?? []).filter((m) => m !== month);
+      return {
+        ...b,
+        household: { ...b.household, bufferSkipped: skip ? [...rest, month] : rest },
+      };
+    });
+  }
 
   // Nothing has been entered at all, so there is no figure to state. A zero here
   // is a confident answer to a question the app has no data for.
@@ -116,8 +110,22 @@ export function Overview() {
             It is one decision the household made about a shared account, and a
             transfer that quietly grew is the fastest way to stop trusting a budget. */}
         {result.bufferTopUp > 0 && (
-          <div style={{ marginBottom: 14 }}>
+          <div className="buffer-note">
             <Note>{t.bufferNote(sek(result.bufferTopUp))}</Note>
+            <button className="btn btn-small btn-secondary" onClick={() => setSkipped(true)}>
+              {t.skipBuffer}
+            </button>
+          </div>
+        )}
+
+        {/* A month that opted out says so, and can change its mind. Silence would
+            look like the month simply was not good enough. */}
+        {skipped && (
+          <div className="buffer-note">
+            <Note>{t.bufferSkipped}</Note>
+            <button className="btn btn-small btn-secondary" onClick={() => setSkipped(false)}>
+              {t.undoSkipBuffer}
+            </button>
           </div>
         )}
         {result.memberLines.length === 0 ? (
@@ -181,6 +189,14 @@ export function Overview() {
             </button>
           }
         >
+          {/* Where the account stands now, before the line ahead of it. The entered
+              reading is a date and a figure; this is what has happened since. */}
+          {estimated !== null && (
+            <div className="estimated-now">
+              <span className="label">{t.estimatedToday}</span>
+              <span className="value">{sek(estimated)}</span>
+            </div>
+          )}
           {showTable ? <ForecastTable points={points} /> : <ForecastChart points={points} />}
         </Card>
       )}

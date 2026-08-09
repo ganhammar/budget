@@ -51,9 +51,20 @@ export function planSync(previous: Budget, next: Budget): Promise<unknown>[] {
 
   if (
     previous.household.bufferMonths !== next.household.bufferMonths &&
-    next.household.bufferMonths
+    next.household.bufferMonths !== undefined
   ) {
     calls.push(api.setBuffer(next.household.bufferMonths));
+  }
+
+  // Only the months that changed, so two clients skipping different months do not
+  // overwrite each other's answer.
+  const wasSkipped = new Set(previous.household.bufferSkipped ?? []);
+  const isSkipped = new Set(next.household.bufferSkipped ?? []);
+  for (const month of isSkipped) {
+    if (!wasSkipped.has(month)) calls.push(api.skipBuffer(month, true));
+  }
+  for (const month of wasSkipped) {
+    if (!isSkipped.has(month)) calls.push(api.skipBuffer(month, false));
   }
 
   const before = previous.accountBalance;

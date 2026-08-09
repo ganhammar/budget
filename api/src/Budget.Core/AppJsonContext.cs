@@ -33,6 +33,7 @@ namespace Budget.Api;
 [JsonSerializable(typeof(CategoriesRequest))]
 [JsonSerializable(typeof(SplitRequest))]
 [JsonSerializable(typeof(BufferRequest))]
+[JsonSerializable(typeof(BufferSkipRequest))]
 [JsonSerializable(typeof(PutIncomeRequest))]
 [JsonSerializable(typeof(MeResponse))]
 [JsonSerializable(typeof(ErrorResponse))]

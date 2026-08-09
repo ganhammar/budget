@@ -130,11 +130,17 @@ const sv = {
     `Månaden gick bättre än normalt, så ${amount} går till bufferten utöver kostnaderna.`,
   bufferGoalLabel: 'Buffertmål',
   bufferMonths: (months: number) => (months === 1 ? '1 månad' : `${months} månader`),
-  bufferUnset: 'Inget mål satt',
+  bufferOff: 'Ingen buffert',
   bufferHint: (goal: string) =>
     `Så mycket vill ni ha på det gemensamma kontot: ${goal}. På månader som går bättre än normalt läggs en liten del undan tills ni är där.`,
-  bufferHintUnset:
-    'Hur många månaders kostnader ni vill ha på det gemensamma kontot. På månader som går bättre än normalt läggs en liten del undan tills ni är där.',
+  bufferHintOff: 'Inget läggs undan. Överföringarna täcker bara månadens kostnader.',
+  bufferExplainer:
+    'Bufferten är pengar som ligger kvar på det gemensamma kontot för de månader som blir dyrare än vanligt. Den räknas fram ur kostnaderna som ligger här, så den blir bara rätt om allt som dras från kontot finns med i appen.',
+  estimatedToday: 'Uppskattat saldo idag',
+  estimatedFrom: (month: string, amount: string) => `Utifrån ${amount} som angavs för ${month}`,
+  skipBuffer: 'Hoppa över den här månaden',
+  bufferSkipped: 'Ingen buffert den här månaden.',
+  undoSkipBuffer: 'Ångra',
   leftAfterCosts: 'kvar efter kostnader',
   splitRule: 'Fördelning',
   splitEqualLeftover: 'Alla får lika mycket kvar',
@@ -519,11 +525,17 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
     `The month came in better than normal, so ${amount} goes to the buffer on top of the costs.`,
   bufferGoalLabel: 'Buffer goal',
   bufferMonths: (months: number) => (months === 1 ? '1 month' : `${months} months`),
-  bufferUnset: 'No goal set',
+  bufferOff: 'No buffer',
   bufferHint: (goal: string) =>
     `What you want sitting in the joint account: ${goal}. On months that come in better than normal, a little is set aside until you are there.`,
-  bufferHintUnset:
-    'How many months of costs you want in the joint account. On months that come in better than normal, a little is set aside until you are there.',
+  bufferHintOff: 'Nothing is set aside. Transfers cover the month and no more.',
+  bufferExplainer:
+    'The buffer is money left sitting in the joint account for the months that cost more than usual. It is worked out from the costs recorded here, so it is only right if everything leaving that account is in the app.',
+  estimatedToday: 'Estimated balance today',
+  estimatedFrom: (month: string, amount: string) => `Based on ${amount} recorded for ${month}`,
+  skipBuffer: 'Skip this month',
+  bufferSkipped: 'No buffer this month.',
+  undoSkipBuffer: 'Undo',
   leftAfterCosts: 'left after costs',
   splitRule: 'Split',
   splitEqualLeftover: 'Everyone keeps the same',
