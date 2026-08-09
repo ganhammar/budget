@@ -653,28 +653,37 @@ const BUFFER_FULL_AT = 0.5;
  * against a nearly full buffer rounds to nothing without needing to be named as a
  * special case.
  *
- * It is only ever a slice of income nobody was counting on, so a good month can
- * never become a tight one, and never more than the goal is short by, so it stops
- * on arrival rather than overshooting. Rounded to the hundred, because a transfer
- * with a long tail invites the question of where the last nineteen kronor came
- * from.
+ * Three things cap it. Never more than a slice of income nobody was counting on,
+ * so a good month cannot become a tight one. Never more than the goal is short by,
+ * so it stops on arrival rather than overshooting. And never more than the month
+ * has left after everything it owes, because earning above normal and having
+ * anything spare are not the same thing: a month can come in well above normal and
+ * still end in the red when an annual charge lands in it.
+ *
+ * Floored rather than rounded to the hundred. Rounding to nearest can land above a
+ * cap it was meant to respect, and a transfer with a long tail invites the question
+ * of where the last nineteen kronor came from.
  */
 export function bufferTopUp(
   goal: number,
   balance: number,
   excess: number,
   normalIncome: number,
+  affordable: number,
 ): number {
   if (goal <= 0 || excess <= 0 || normalIncome <= 0) return 0;
 
   const gap = goal - balance;
   if (gap <= 0) return 0;
 
+  const spare = Math.max(0, affordable);
+  if (spare <= 0) return 0;
+
   const goodness = Math.min(1, excess / (normalIncome * BUFFER_FULL_AT));
   const room = Math.min(1, gap / goal);
   const share = BUFFER_MAX_SHARE * goodness * room;
 
-  return Math.round(Math.min(excess * share, gap) / 100) * 100;
+  return Math.floor(Math.min(excess * share, gap, spare) / 100) * 100;
 }
 
 /**
@@ -752,7 +761,15 @@ export function forecast(budget: Budget, months: number): ForecastPoint[] {
     const opening = balance;
     // Worked out either way, so a skipped month can say what it turned down and a
     // month that would have contributed nothing has nothing to undo.
-    const wouldBe = bufferTopUp(goal, opening, incomeAboveNormal(budget, result.month), normal);
+    // `result` is worked out without a buffer, so its surplus is what the month has
+    // left before any of this: exactly what it can spare.
+    const wouldBe = bufferTopUp(
+      goal,
+      opening,
+      incomeAboveNormal(budget, result.month),
+      normal,
+      result.surplus,
+    );
     const declined = bufferSkipped(budget, result.month);
     const topUp = declined ? 0 : wouldBe;
 

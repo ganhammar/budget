@@ -320,33 +320,43 @@ console.log('\n— The buffer —');
    */
   const NORMAL = 100000;
 
+  /** A month with plenty left, so the surplus is never the binding cap. */
+  const RICH = 1000000;
+
   // Barely over, empty account: a couple of percent of the difference.
-  check('a small excess gives a small share', bufferTopUp(100000, 0, 5000, NORMAL), 100, 0.001);
+  check('a small excess gives a small share', bufferTopUp(100000, 0, 5000, NORMAL, RICH), 100, 0.001);
 
   // Half again as much as normal, empty account: the full quarter.
-  check('a big excess on an empty buffer gives the most', bufferTopUp(100000, 0, 50000, NORMAL), 12500, 0.001);
+  check('a big excess on an empty buffer gives the most', bufferTopUp(100000, 0, 50000, NORMAL, RICH), 12500, 0.001);
 
   // The same big month against a nearly full buffer takes far less.
-  check('the same month takes less when nearly full', bufferTopUp(100000, 90000, 50000, NORMAL), 1300, 0.001);
+  check('the same month takes less when nearly full', bufferTopUp(100000, 90000, 50000, NORMAL, RICH), 1200, 0.001);
 
   // A small excess against a nearly full buffer rounds away to nothing, which is
   // the case that would otherwise need naming.
-  check('small excess and nearly full takes nothing', bufferTopUp(100000, 90000, 5000, NORMAL), 0, 0.001);
+  check('small excess and nearly full takes nothing', bufferTopUp(100000, 90000, 5000, NORMAL, RICH), 0, 0.001);
 
-  check('nothing when the month was normal', bufferTopUp(100000, 0, 0, NORMAL), 0, 0.001);
-  check('nothing once the goal is met', bufferTopUp(100000, 100000, 12000, NORMAL), 0, 0.001);
-  check('nothing past the goal', bufferTopUp(100000, 150000, 12000, NORMAL), 0, 0.001);
+  check('nothing when the month was normal', bufferTopUp(100000, 0, 0, NORMAL, RICH), 0, 0.001);
+  check('nothing once the goal is met', bufferTopUp(100000, 100000, 12000, NORMAL, RICH), 0, 0.001);
+  check('nothing past the goal', bufferTopUp(100000, 150000, 12000, NORMAL, RICH), 0, 0.001);
   // The room factor usually gets there first, but a windfall large enough to
   // overshoot on its own is still capped at what is missing.
-  check('never more than the gap', bufferTopUp(100000, 0, 1000000, NORMAL), 100000, 0.001);
-  check('nothing without a goal', bufferTopUp(0, 0, 50000, NORMAL), 0, 0.001);
+  check('never more than the gap', bufferTopUp(100000, 0, 1000000, NORMAL, RICH), 100000, 0.001);
+  check('nothing without a goal', bufferTopUp(0, 0, 50000, NORMAL, RICH), 0, 0.001);
+
+  // Earning above normal and having something spare are not the same thing.
+  check('nothing when the month has nothing left', bufferTopUp(100000, 0, 50000, NORMAL, 0), 0, 0.001);
+  check('nothing when the month ends in the red', bufferTopUp(100000, 0, 50000, NORMAL, -8000), 0, 0.001);
+  check('never more than the month can spare', bufferTopUp(100000, 0, 50000, NORMAL, 3000), 3000, 0.001);
+  // Floored, so a cap can never be exceeded by the rounding meant to tidy it.
+  check('and floored rather than rounded up to it', bufferTopUp(100000, 0, 50000, NORMAL, 3050), 3000, 0.001);
 
   // More of a good month is always worth more, and a fuller buffer always takes
   // less: the curve never doubles back on itself.
   let previous = -1;
   let rising = true;
   for (let excess = 0; excess <= 60000; excess += 2000) {
-    const value = bufferTopUp(100000, 20000, excess, NORMAL);
+    const value = bufferTopUp(100000, 20000, excess, NORMAL, RICH);
     if (value < previous) rising = false;
     previous = value;
   }
@@ -355,7 +365,7 @@ console.log('\n— The buffer —');
   let falling = true;
   previous = Number.MAX_SAFE_INTEGER;
   for (let balance = 0; balance <= 100000; balance += 5000) {
-    const value = bufferTopUp(100000, balance, 30000, NORMAL);
+    const value = bufferTopUp(100000, balance, 30000, NORMAL, RICH);
     if (value > previous) falling = false;
     previous = value;
   }
@@ -424,6 +434,32 @@ console.log('\n— The buffer —');
 
     // A skip reports what it turned down, so undoing it has something to restore.
     check('a skipped month says what it declined', skipped[0].bufferDeclined, setAside, 0.001);
+
+    /*
+     * The month that motivated the cap: income well above normal, and a one-off
+     * large enough that it still ends in the red. Earning more than usual is not
+     * the same as having anything spare.
+     */
+    const expensive = {
+      ...goodMonth,
+      oneOffCosts: [
+        { id: 'roof', description: 'Tak', total: 200000, start: MONTH, end: addMonths(MONTH, 1), payerId: undefined },
+      ],
+    };
+    const drowning = forecast(expensive, 3);
+    check('the month is under water', calculateMonth(expensive, MONTH).surplus < 0 ? 1 : 0, 1, 0);
+    check('and sets nothing aside', drowning[0].bufferTopUp, 0, 0.001);
+
+    // Tight rather than drowning: it gives what it has and no more.
+    const tight = {
+      ...goodMonth,
+      oneOffCosts: [
+        { id: 'kok', description: 'Kök', total: 41500, start: MONTH, end: addMonths(MONTH, 1), payerId: undefined },
+      ],
+    };
+    const squeezed = forecast(tight, 3);
+    const left = calculateMonth(tight, MONTH).surplus;
+    check('a tight month gives no more than it has', squeezed[0].bufferTopUp <= left ? 1 : 0, 1, 0);
 
     // A month that would have set nothing aside has nothing to undo, even if it
     // is on the list: the goal was turned off after the fact here.
