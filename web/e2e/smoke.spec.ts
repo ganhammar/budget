@@ -454,3 +454,30 @@ test('a month can opt out of its own buffer', async ({ page, context, request })
   await page.getByRole('button', { name: /ångra|undo/i }).click();
   await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();
 });
+
+test('the estimated balance can be corrected from the overview', async ({ page, context, request }) => {
+  const email = `${unique('est')}@e2e.se`;
+  const cookie = `budget_session=${devSessionCookie(email)}`;
+  await signIn(context, email);
+  const budget = await (await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).json();
+  const me = budget.members[0];
+  await request.put(`/api/members/${me.id}`, { headers: { cookie }, data: { ...me, baselineIncome: 48000 } });
+
+  const costId = unique('c');
+  await request.put(`/api/costs/${costId}`, {
+    headers: { cookie },
+    data: { id: costId, category: 'Boende', description: 'Hyra', amount: 12000, intervalMonths: 1, firstCharge: '2026-01', payerId: null },
+  });
+
+  const month = new Date().toISOString().slice(0, 7);
+  await request.put('/api/account-balance', { headers: { cookie }, data: { month, amount: 8000 } });
+
+  await page.goto('/');
+  await expect(page.locator('.estimated-now')).toContainText(/8[\s,]000/);
+
+  await page.getByRole('button', { name: /uppdatera saldot|update the balance/i }).click();
+  await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('12345');
+  await page.locator('.sheet').getByRole('button', { name: /spara|save/i }).click();
+
+  await expect(page.locator('.estimated-now')).toContainText(/12[\s,]345/);
+});

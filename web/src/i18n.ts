@@ -137,6 +137,8 @@ const sv = {
   bufferExplainer:
     'Bufferten är pengar som ligger kvar på det gemensamma kontot för de månader som blir dyrare än vanligt. Den räknas fram ur kostnaderna som ligger här, så den blir bara rätt om allt som dras från kontot finns med i appen.',
   estimatedToday: 'Uppskattat saldo idag',
+  estimatedWrong: 'Stämmer inte?',
+  estimatedUpdate: 'Uppdatera saldot',
   estimatedFrom: (month: string, amount: string) => `Utifrån ${amount} som angavs för ${month}`,
   skipBuffer: 'Hoppa över den här månaden',
   bufferSkipped: 'Ingen buffert den här månaden.',
@@ -532,6 +534,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   bufferExplainer:
     'The buffer is money left sitting in the joint account for the months that cost more than usual. It is worked out from the costs recorded here, so it is only right if everything leaving that account is in the app.',
   estimatedToday: 'Estimated balance today',
+  estimatedWrong: 'Not right?',
+  estimatedUpdate: 'Update the balance',
   estimatedFrom: (month: string, amount: string) => `Based on ${amount} recorded for ${month}`,
   skipBuffer: 'Skip this month',
   bufferSkipped: 'No buffer this month.',

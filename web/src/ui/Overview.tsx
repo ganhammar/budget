@@ -10,6 +10,7 @@ import {
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
 import { Card, Empty, Field, MonthInput, Note, Stat } from './components';
+import { BalanceSheet } from './BalanceSheet';
 import { ForecastChart, ForecastTable } from './ForecastChart';
 import { IncomeBanner } from './IncomeBanner';
 import { FirstSteps, nothingToComputeYet } from './FirstSteps';
@@ -22,6 +23,7 @@ export function Overview() {
   const t = useText();
   const [month, setMonth] = useState(currentMonth());
   const [showTable, setShowTable] = useState(false);
+  const [editingBalance, setEditingBalance] = useState(false);
 
   const points = useMemo(() => forecast(budget, FORECAST_MONTHS), [budget]);
 
@@ -177,6 +179,17 @@ export function Overview() {
       </Card>
       )}
 
+      {editingBalance && (
+        <BalanceSheet
+          balance={budget.accountBalance ?? null}
+          onSave={(amount, balanceMonth) => {
+            update((b) => ({ ...b, accountBalance: { amount, month: balanceMonth } }));
+            setEditingBalance(false);
+          }}
+          onClose={() => setEditingBalance(false)}
+        />
+      )}
+
       {/* Without a recorded balance there is nothing to count forward from, and a
           card explaining its own absence is worse than no card. Recording one is
           in household settings, where the rest of the joint account lives. */}
@@ -193,8 +206,18 @@ export function Overview() {
               reading is a date and a figure; this is what has happened since. */}
           {estimated !== null && (
             <div className="estimated-now">
-              <span className="label">{t.estimatedToday}</span>
-              <span className="value">{sek(estimated)}</span>
+              <div className="estimated-head">
+                <span className="label">{t.estimatedToday}</span>
+                <span className="value">{sek(estimated)}</span>
+              </div>
+              {/* Worked forward from a figure someone typed once, so the way to
+                  correct it belongs next to it rather than three taps away. */}
+              <p className="estimated-correct">
+                {t.estimatedWrong}{' '}
+                <button className="linkish" onClick={() => setEditingBalance(true)}>
+                  {t.estimatedUpdate}
+                </button>
+              </p>
             </div>
           )}
           {showTable ? <ForecastTable points={points} /> : <ForecastChart points={points} />}

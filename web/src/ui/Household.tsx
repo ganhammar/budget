@@ -4,7 +4,8 @@ import type { Member, Role, SplitRule } from '../domain/types';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
 import { bufferGoal, bufferMonthsOf, estimatedBalance } from '../domain/engine';
-import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
+import { Card, Field, ListRow, Note, Sheet } from './components';
+import { BalanceSheet } from './BalanceSheet';
 import { api } from '../api/client';
 import { useText } from '../i18n';
 
@@ -355,47 +356,5 @@ export function Household() {
         </Sheet>
       )}
     </>
-  );
-}
-
-/**
- * The month matters as much as the figure: the forecast starts there and counts
- * forward, so a reading from six months ago is six months of assumption.
- */
-function BalanceSheet({
-  balance,
-  onSave,
-  onClose,
-}: {
-  balance: { amount: number; month: string } | null;
-  onSave: (amount: number, month: string) => void;
-  onClose: () => void;
-}) {
-  const t = useText();
-  const [amount, setAmount] = useState<number | ''>(balance?.amount ?? '');
-  const [month, setMonth] = useState(balance?.month ?? currentMonth());
-
-  return (
-    <Sheet title={t.jointAccount} onClose={onClose}>
-      <div style={{ marginBottom: 14 }}>
-        <Note>{t.balanceNote}</Note>
-      </div>
-
-      <Field label={t.balanceField}>
-        <AmountInput value={amount} onChange={setAmount} step={100} />
-      </Field>
-
-      <Field label={t.appliesToMonth}>
-        <MonthInput value={month} onChange={setMonth} />
-      </Field>
-
-      <button
-        className="btn"
-        disabled={amount === ''}
-        onClick={() => onSave(Number(amount), month)}
-      >
-        {t.save}
-      </button>
-    </Sheet>
   );
 }
