@@ -111,12 +111,17 @@ export function Overview() {
         {/* Said once, at the top, rather than as a line inside each person's block.
             It is one decision the household made about a shared account, and a
             transfer that quietly grew is the fastest way to stop trusting a budget. */}
+        {/* The way out is a clause of the sentence rather than a control beside it.
+            A boxed button next to an italic aside aligns with nothing, and opting
+            out of one month is a rare, secondary thing to want. */}
         {result.bufferTopUp > 0 && (
           <div className="buffer-note">
-            <Note>{t.bufferNote(sek(result.bufferTopUp))}</Note>
-            <button className="btn btn-small btn-secondary" onClick={() => setSkipped(true)}>
-              {t.skipBuffer}
-            </button>
+            <Note>
+              {t.bufferNote(sek(result.bufferTopUp))}{' '}
+              <button className="linkish" onClick={() => setSkipped(true)}>
+                {t.skipBuffer}
+              </button>
+            </Note>
           </div>
         )}
 
@@ -124,10 +129,12 @@ export function Overview() {
             look like the month simply was not good enough. */}
         {skipped && (
           <div className="buffer-note">
-            <Note>{t.bufferSkipped}</Note>
-            <button className="btn btn-small btn-secondary" onClick={() => setSkipped(false)}>
-              {t.undoSkipBuffer}
-            </button>
+            <Note>
+              {t.bufferSkipped}{' '}
+              <button className="linkish" onClick={() => setSkipped(false)}>
+                {t.undoSkipBuffer}
+              </button>
+            </Note>
           </div>
         )}
         {result.memberLines.length === 0 ? (

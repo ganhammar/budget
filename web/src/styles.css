@@ -323,17 +323,8 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* The note and its way out sit on one line, so the opt-out is next to the thing
-   it opts out of rather than under it. */
 .buffer-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
   margin-bottom: 14px;
-}
-
-.buffer-note .btn {
-  flex: 0 0 auto;
 }
 
 .household-buffer {
