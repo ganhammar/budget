@@ -308,12 +308,53 @@ console.log('\n— The buffer —');
   check('goal is that many months of it', bufferGoal(withGoal, MONTH), average * goalMonths, 0.001);
   check('no goal, no target', bufferGoal(sheetBudget, MONTH), 0, 0.001);
 
-  // Only ever a slice of what was not expected, and never past the goal.
-  check('a tenth of the excess', bufferTopUp(100000, 0, 12000), 1200, 0.001);
-  check('nothing when the month was normal', bufferTopUp(100000, 0, 0), 0, 0.001);
-  check('nothing once the goal is met', bufferTopUp(100000, 100000, 12000), 0, 0.001);
-  check('never more than the gap', bufferTopUp(100000, 99500, 12000), 500, 0.001);
-  check('rounded to the hundred', bufferTopUp(100000, 0, 12345), 1200, 0.001);
+  /*
+   * The share is the product of how good the month was and how much room is left,
+   * so the four corners are what matter. Normal income is 100 000 throughout, and
+   * the goal 100 000, which makes the fractions easy to read.
+   */
+  const NORMAL = 100000;
+
+  // Barely over, empty account: a couple of percent of the difference.
+  check('a small excess gives a small share', bufferTopUp(100000, 0, 5000, NORMAL), 100, 0.001);
+
+  // Half again as much as normal, empty account: the full quarter.
+  check('a big excess on an empty buffer gives the most', bufferTopUp(100000, 0, 50000, NORMAL), 12500, 0.001);
+
+  // The same big month against a nearly full buffer takes far less.
+  check('the same month takes less when nearly full', bufferTopUp(100000, 90000, 50000, NORMAL), 1300, 0.001);
+
+  // A small excess against a nearly full buffer rounds away to nothing, which is
+  // the case that would otherwise need naming.
+  check('small excess and nearly full takes nothing', bufferTopUp(100000, 90000, 5000, NORMAL), 0, 0.001);
+
+  check('nothing when the month was normal', bufferTopUp(100000, 0, 0, NORMAL), 0, 0.001);
+  check('nothing once the goal is met', bufferTopUp(100000, 100000, 12000, NORMAL), 0, 0.001);
+  check('nothing past the goal', bufferTopUp(100000, 150000, 12000, NORMAL), 0, 0.001);
+  // The room factor usually gets there first, but a windfall large enough to
+  // overshoot on its own is still capped at what is missing.
+  check('never more than the gap', bufferTopUp(100000, 0, 1000000, NORMAL), 100000, 0.001);
+  check('nothing without a goal', bufferTopUp(0, 0, 50000, NORMAL), 0, 0.001);
+
+  // More of a good month is always worth more, and a fuller buffer always takes
+  // less: the curve never doubles back on itself.
+  let previous = -1;
+  let rising = true;
+  for (let excess = 0; excess <= 60000; excess += 2000) {
+    const value = bufferTopUp(100000, 20000, excess, NORMAL);
+    if (value < previous) rising = false;
+    previous = value;
+  }
+  check('more excess never sets aside less', rising ? 1 : 0, 1, 0);
+
+  let falling = true;
+  previous = Number.MAX_SAFE_INTEGER;
+  for (let balance = 0; balance <= 100000; balance += 5000) {
+    const value = bufferTopUp(100000, balance, 30000, NORMAL);
+    if (value > previous) falling = false;
+    previous = value;
+  }
+  check('a fuller buffer never sets aside more', falling ? 1 : 0, 1, 0);
 
   // A good month is the household coming in above its normal income, not one
   // person doing well while the other does not.

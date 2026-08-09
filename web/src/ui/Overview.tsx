@@ -6,6 +6,7 @@ import {
   calculateMonth,
   forecast,
   incomeAboveNormal,
+  normalIncome,
   savingsTotal,
 } from '../domain/engine';
 import { sek } from '../domain/format';
@@ -38,7 +39,12 @@ export function Overview() {
   const topUp = useMemo(() => {
     const opening = points.find((p) => p.month === month)?.opening;
     if (opening === undefined) return 0;
-    return bufferTopUp(bufferGoal(budget, month), opening, incomeAboveNormal(budget, month));
+    return bufferTopUp(
+      bufferGoal(budget, month),
+      opening,
+      incomeAboveNormal(budget, month),
+      normalIncome(budget),
+    );
   }, [budget, month, points]);
 
   const result = useMemo(() => calculateMonth(budget, month, topUp), [budget, month, topUp]);

@@ -615,25 +615,53 @@ export function bufferGoal(budget: Budget, from: Month): number {
   return averageCommitment(budget, from) * months;
 }
 
-/** A tenth of what was unexpected, and never more than the goal is short by. */
-const BUFFER_SHARE = 0.1;
+/** The most that would ever be taken from a single month. */
+const BUFFER_MAX_SHARE = 0.25;
+/** The excess at which the share reaches that maximum, as a fraction of normal income. */
+const BUFFER_FULL_AT = 0.5;
 
 /**
  * How much of a good month to set aside.
  *
- * Only ever a slice of income that was not expected, so a good month can never
- * become a tight one, and never more than the goal is still short by, so it stops
+ * Two things scale it, and they multiply rather than taking turns:
+ *
+ * How good the month was. A month barely above normal contributes a couple of
+ * percent of the difference; one half again as large contributes the full share.
+ *
+ * How much room is left. An empty account takes the whole share, a nearly full one
+ * almost nothing, reaching zero exactly at the goal.
+ *
+ * Multiplying is what makes the awkward case fall out on its own: a small excess
+ * against a nearly full buffer rounds to nothing without needing to be named as a
+ * special case.
+ *
+ * It is only ever a slice of income nobody was counting on, so a good month can
+ * never become a tight one, and never more than the goal is short by, so it stops
  * on arrival rather than overshooting. Rounded to the hundred, because a transfer
  * with a long tail invites the question of where the last nineteen kronor came
  * from.
  */
-export function bufferTopUp(goal: number, balance: number, excess: number): number {
-  if (goal <= 0 || excess <= 0) return 0;
+export function bufferTopUp(
+  goal: number,
+  balance: number,
+  excess: number,
+  normalIncome: number,
+): number {
+  if (goal <= 0 || excess <= 0 || normalIncome <= 0) return 0;
 
   const gap = goal - balance;
   if (gap <= 0) return 0;
 
-  return Math.round(Math.min(excess * BUFFER_SHARE, gap) / 100) * 100;
+  const goodness = Math.min(1, excess / (normalIncome * BUFFER_FULL_AT));
+  const room = Math.min(1, gap / goal);
+  const share = BUFFER_MAX_SHARE * goodness * room;
+
+  return Math.round(Math.min(excess * share, gap) / 100) * 100;
+}
+
+/** What the household brings in in an ordinary month, before anything is confirmed. */
+export function normalIncome(budget: Budget): number {
+  return activeMembers(budget).reduce((sum, m) => sum + m.baselineIncome, 0);
 }
 
 /**
