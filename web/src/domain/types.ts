@@ -137,6 +137,11 @@ export interface OneOffCost {
   start: Month;
   end: Month;
   payerId?: string;
+  /**
+   * Paid out of what the account already holds and never charged back. The money
+   * leaves in the starting month and no one repays it, so `end` means nothing.
+   */
+  fromBuffer?: boolean;
 }
 
 /** Contribution from a month onwards, the same idea as CostTerms. */

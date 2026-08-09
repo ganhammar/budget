@@ -79,7 +79,9 @@ public sealed record OneOffCost(
     decimal Total,
     string Start,
     string End,
-    string? PayerId);
+    string? PayerId,
+    /// <summary>Paid from what the account holds and never charged back.</summary>
+    bool? FromBuffer = null);
 
 /// <summary>
 /// One browser's push subscription. A member has one per device, and like savings

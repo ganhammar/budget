@@ -473,6 +473,47 @@ console.log('\n— The buffer —');
   check('leaving that much less over', plain.surplus - topped.surplus, 2000, 0.001);
 }
 
+console.log('\n— A one-off taken out of the buffer —');
+{
+  const month = MONTH;
+  const base = {
+    ...sheetBudget,
+    household: { ...sheetBudget.household, bufferMonths: 2 },
+    accountBalance: { month, amount: 60000 },
+  };
+
+  const repaid = {
+    ...base,
+    oneOffCosts: [
+      { id: 'k', description: 'Kök', total: 30000, start: month, end: addMonths(month, 10), payerId: undefined },
+    ],
+  };
+  const absorbed = {
+    ...base,
+    oneOffCosts: [{ ...repaid.oneOffCosts[0], fromBuffer: true }],
+  };
+
+  const a = calculateMonth(repaid, month);
+  const b = calculateMonth(absorbed, month);
+
+  // Nobody repays it, so it is in nobody's share and nobody's transfer.
+  check('a repaid one-off is charged monthly', a.oneOffTotal, 3000, 0.001);
+  check('an absorbed one-off is charged to no one', b.oneOffTotal, 0, 0.001);
+  check('and so does not move the transfers', b.jointInflow, calculateMonth(base, month).jointInflow, 0.001);
+
+  // It is still spent, and still reported.
+  check('but it is reported for the month it lands', b.oneOffAbsorbed, 30000, 0.001);
+  check('and only in that month', calculateMonth(absorbed, addMonths(month, 1)).oneOffAbsorbed, 0, 0.001);
+
+  // The account pays it either way, so the balance drops either way.
+  const withRepaid = forecast(repaid, 3);
+  const withAbsorbed = forecast(absorbed, 3);
+  check('the account pays it out in full', withAbsorbed[0].outflow - forecast(base, 3)[0].outflow, 30000, 0.001);
+
+  // The difference is what happens next: repaying puts it back, absorbing does not.
+  check('a repaid one-off comes back to the account', withRepaid[2].closing > withAbsorbed[2].closing ? 1 : 0, 1, 0);
+}
+
 console.log('\n— A loan does not exist before it was taken out —');
 
 const started: Budget = {

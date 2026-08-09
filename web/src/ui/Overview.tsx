@@ -95,7 +95,15 @@ export function Overview() {
           <Stat label={t.expenses} value={sek(result.totalCosts)} />
           <Stat label={t.shared} value={sek(result.recurringTotal)} />
           <Stat label={t.loans} value={sek(result.loanTotal)} />
-          <Stat label={t.oneOffCosts} value={sek(result.oneOffTotal)} />
+          {/* The whole amount lands here in the month it lands, including anything
+              the account swallowed, because that is what the month cost. The note
+              says which part of it nobody is repaying, since that part is absent
+              from every transfer below. */}
+          <Stat
+            label={t.oneOffCosts}
+            value={sek(result.oneOffTotal + result.oneOffAbsorbed)}
+            note={result.oneOffAbsorbed > 0 ? t.ofWhichAbsorbed(sek(result.oneOffAbsorbed)) : undefined}
+          />
           {result.bufferTopUp > 0 && (
             <Stat label={t.buffer} value={sek(result.bufferTopUp)} />
           )}

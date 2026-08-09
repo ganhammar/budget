@@ -277,6 +277,16 @@ body {
 
 /* The goal is a separate thought from the reading above it, and was sitting on
    top of the rule that closes it. */
+/* The row is label and figure on one line, so a qualifier has to break out of it
+   and sit under both rather than becoming a third column. */
+.stat-note {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
 .estimated-now {
   margin-bottom: 16px;
 }
@@ -521,9 +531,10 @@ body {
 
 .stat {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  gap: 0 16px;
   padding: 7px 0;
   border-bottom: 1px solid var(--rule);
 }

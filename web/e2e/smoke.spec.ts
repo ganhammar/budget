@@ -482,3 +482,40 @@ test('the estimated balance can be corrected from the overview', async ({ page, 
 
   await expect(page.locator('.estimated-now')).toContainText(/12[\s,]345/);
 });
+
+test('a one-off can be taken out of the buffer instead of repaid', async ({ page, context, request }) => {
+  const email = `${unique('absorb')}@e2e.se`;
+  const cookie = `budget_session=${devSessionCookie(email)}`;
+  await signIn(context, email);
+  const budget = await (await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).json();
+  const me = budget.members[0];
+  await request.put(`/api/members/${me.id}`, { headers: { cookie }, data: { ...me, baselineIncome: 48000 } });
+
+  const costId = unique('c');
+  await request.put(`/api/costs/${costId}`, {
+    headers: { cookie },
+    data: { id: costId, category: 'Boende', description: 'Hyra', amount: 12000, intervalMonths: 1, firstCharge: '2026-01', payerId: null },
+  });
+
+  const month = new Date().toISOString().slice(0, 7);
+  await request.put('/api/account-balance', { headers: { cookie }, data: { month, amount: 40000 } });
+  await request.put('/api/household/buffer', { headers: { cookie }, data: { months: 2 } });
+
+  await page.goto('/#oneoff');
+  await page.getByRole('button', { name: /^(lägg till|add)$/i }).click();
+  await page.locator('.sheet input[type="text"], .sheet input:not([type])').first().fill('Kök');
+  await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('9000');
+
+  const option = page.getByText(/ur bufferten i stället|from the buffer instead/i);
+  await expect(option).toBeVisible();
+  await option.click();
+
+  // The warning states what is left, so the cost of doing it is on screen.
+  await expect(page.getByText(/lämnar det gemensamma kontot|leaves the joint account/i)).toBeVisible();
+
+  await page.locator('.sheet').getByRole('button', { name: /spara|save/i }).click();
+
+  // The history says it plainly.
+  await expect(page.getByText(/Ur bufferten|From the buffer/i).first()).toBeVisible();
+  await expect(page.getByText(/Betalas inte tillbaka|Not repaid/i)).toBeVisible();
+});

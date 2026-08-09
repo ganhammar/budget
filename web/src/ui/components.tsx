@@ -177,15 +177,19 @@ export function Stat({
   label,
   value,
   tone,
+  note,
 }: {
   label: string;
   value: string;
   tone?: 'positive' | 'negative';
+  /** Qualifies the figure where it stands, for the times it needs qualifying. */
+  note?: string;
 }) {
   return (
     <div className="stat">
       <div className="label">{label}</div>
       <div className={`value ${tone ?? ''}`}>{value}</div>
+      {note && <div className="stat-note">{note}</div>}
     </div>
   );
 }

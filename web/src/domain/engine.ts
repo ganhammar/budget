@@ -158,10 +158,23 @@ export function monthlyShare(cost: OneOffCost): number {
   return cost.total / repaymentMonths(cost);
 }
 
-/** Active from the start month up to and including the month before `end`. */
+/**
+ * Active from the start month up to and including the month before `end`.
+ *
+ * Nothing absorbed is ever active: it is not being repaid, so there is no month in
+ * which anyone owes a share of it.
+ */
 export function isActiveIn(cost: OneOffCost, month: Month): boolean {
+  if (cost.fromBuffer) return false;
   const delta = monthsBetween(cost.start, month);
   return delta >= 0 && delta < repaymentMonths(cost);
+}
+
+/** What the account swallows this month without charging it back to anyone. */
+export function absorbedIn(budget: Budget, month: Month): number {
+  return budget.oneOffCosts
+    .filter((c) => c.fromBuffer && c.start === month)
+    .reduce((sum, c) => sum + c.total, 0);
 }
 
 export function monthsRemaining(cost: OneOffCost, month: Month): number {
@@ -464,6 +477,11 @@ export interface MonthResult {
   memberLines: MemberLine[];
   /** Set aside into the joint account this month, above what it costs to run. */
   bufferTopUp: number;
+  /**
+   * One-off costs the account paid this month and nobody repays. Left out of
+   * `totalCosts` on purpose: it is spent, but it is not owed by anyone.
+   */
+  oneOffAbsorbed: number;
   /** Actual withdrawals from the joint account this month, lumpy rather than smoothed. */
   jointOutflow: number;
   outflowItems: { label: string; amount: number }[];
@@ -559,6 +577,7 @@ function calculate(
     loanLines,
     memberLines,
     bufferTopUp: buffer,
+    oneOffAbsorbed: absorbedIn(budget, month),
     jointOutflow: outflowItems.reduce((sum, i) => sum + i.amount, 0),
     outflowItems,
     jointInflow: memberLines.reduce((sum, l) => sum + l.toTransfer, 0),

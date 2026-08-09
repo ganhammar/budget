@@ -126,6 +126,14 @@ const sv = {
   // Nothing is being divided when there is one of you.
   leftForOne: 'kvar',
   buffer: 'Buffertuppbyggnad',
+  ofWhichAbsorbed: (amount: string) => `varav ${amount} ur bufferten, ingen betalar tillbaka`,
+  fromBuffer: 'Ur bufferten',
+  fromBufferBadge: 'Ur bufferten',
+  fromBufferRow: 'Betalas inte tillbaka',
+  fromBufferLabel: 'Ta det ur bufferten i stället för att betala tillbaka',
+  fromBufferWarning: (left: string) =>
+    `Hela beloppet lämnar det gemensamma kontot och ingen betalar tillbaka det. Kvar blir ${left}, och bufferten byggs bara upp igen på månader som går bättre än normalt.`,
+  fromBufferTooBig: 'Bufferten räcker inte till hela beloppet.',
   bufferNote: (amount: string) =>
     `Månaden gick bättre än normalt, så ${amount} går till bufferten utöver kostnaderna.`,
   bufferGoalLabel: 'Buffertmål',
@@ -524,6 +532,14 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   leftToSplit: (count: number) => `left to split between ${count} ·`,
   leftForOne: 'left',
   buffer: 'Buffer build-up',
+  ofWhichAbsorbed: (amount: string) => `of which ${amount} from the buffer, repaid by no one`,
+  fromBuffer: 'From the buffer',
+  fromBufferBadge: 'From the buffer',
+  fromBufferRow: 'Not repaid',
+  fromBufferLabel: 'Take it from the buffer instead of paying it back',
+  fromBufferWarning: (left: string) =>
+    `The whole amount leaves the joint account and nobody pays it back. That leaves ${left}, and the buffer only builds up again on months that come in better than normal.`,
+  fromBufferTooBig: 'The buffer does not cover the whole amount.',
   bufferNote: (amount: string) =>
     `The month came in better than normal, so ${amount} goes to the buffer on top of the costs.`,
   bufferGoalLabel: 'Buffer goal',
