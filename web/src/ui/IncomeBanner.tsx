@@ -3,6 +3,8 @@ import { useBudget } from '../store/store';
 import { shouldPromptForIncome } from '../domain/income';
 import { currentDayOfMonth, currentMonth, formatMonth } from '../domain/month';
 import { ConfirmIncome } from './ConfirmIncome';
+import { nextFirstStep } from './FirstSteps';
+import { livesAlone } from '../settings';
 import { useText } from '../i18n';
 
 /**
@@ -19,6 +21,9 @@ export function IncomeBanner() {
   const [closed, setClosed] = useState(false);
 
   if (closed) return null;
+  // Silent until the household has finished being set up. One prompt at a time,
+  // and the overview is already asking something.
+  if (nextFirstStep(budget, me, livesAlone()) !== null) return null;
   if (!shouldPromptForIncome(budget, me.id, month, currentDayOfMonth())) return null;
 
   return (

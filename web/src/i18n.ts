@@ -123,6 +123,8 @@ const sv = {
     'Lägg in dina återkommande kostnader, lån och inkomster så räknas fördelningen fram här.',
   showing: 'Visar',
   leftToSplit: (count: number) => `kvar att dela på ${count} ·`,
+  // Nothing is being divided when there is one of you.
+  leftForOne: 'kvar',
   leftAfterCosts: 'kvar efter kostnader',
   splitRule: 'Fördelning',
   splitEqualLeftover: 'Alla får lika mycket kvar',
@@ -163,9 +165,27 @@ const sv = {
   assumingNormal: (amount: string) => `Räknar med normalt ${amount}`,
   waitingFor: (names: string) =>
     `Väntar på ${names}. Som administratör kan du trycka på raden för att fylla i åt dem.`,
-  normalIncome: 'Normal inkomst',
+  normalIncome: 'Normal inkomst efter skatt',
   normalIncomeNote:
-    'Vad ni normalt får in. Används för framtida månader i prognosen och som utgångspunkt när ni bekräftar månadens inkomst.',
+    'Efter skatt, det som landar på kontot. Används för framtida månader i prognosen och som utgångspunkt när ni bekräftar månadens inkomst.',
+  // Shown one at a time on the overview until the household can answer its own
+  // question. Each disappears by being answered, never by being dismissed.
+  nothingToCompute: 'Inget att räkna på än',
+  askBaseline: 'Vad får du ut en vanlig månad?',
+  askBaselineHint: 'Efter skatt, det som landar på kontot.',
+  askCost: 'Vad delar ni på? Börja med en sak.',
+  askCostAction: 'Lägg till en kostnad',
+  askMember: 'Är ni fler i hushållet?',
+  askMemberAlone: 'Bara jag',
+  // Empty sections explain themselves, once, while they are empty.
+  guideCosts:
+    'Sådant ni betalar för tillsammans: hyra, el, försäkring, streaming. Det som ligger här dras av innan pengarna delas mellan er.',
+  guideOneOff:
+    'En större utgift som ska betalas av över tid. Lägg in soffan på tio månader, så belastar den budgeten lite varje månad i stället för allt på en gång.',
+  guideLoans:
+    'Ränta räknas per månad på skulden, amortering läggs till separat. När lånen ligger här ser ni vad de kostar just nu och när ni är skuldfria.',
+  guideIncome:
+    'Din inkomst avgör hur stor din del blir. Fyll i vad du får ut efter skatt, så stämmer fördelningen.',
   history: 'Historik',
   total: 'Totalt',
   historyNote:
@@ -483,6 +503,7 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
     'Add your recurring costs, loans and income and the split is worked out here.',
   showing: 'Showing',
   leftToSplit: (count: number) => `left to split between ${count} ·`,
+  leftForOne: 'left',
   leftAfterCosts: 'left after costs',
   splitRule: 'Split',
   splitEqualLeftover: 'Everyone keeps the same',
@@ -522,9 +543,24 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   assumingNormal: (amount: string) => `Assuming the usual ${amount}`,
   waitingFor: (names: string) =>
     `Waiting for ${names}. As an administrator you can tap the row to fill it in for them.`,
-  normalIncome: 'Normal income',
+  normalIncome: 'Normal income after tax',
   normalIncomeNote:
-    'What you normally receive. Used for future months in the forecast and as the starting point when confirming the month.',
+    'After tax, what actually reaches the account. Used for future months in the forecast and as the starting point when confirming the month.',
+  nothingToCompute: 'Nothing to work out yet',
+  askBaseline: 'What do you take home in a normal month?',
+  askBaselineHint: 'After tax, what actually reaches the account.',
+  askCost: 'What do you share? Start with one thing.',
+  askCostAction: 'Add a cost',
+  askMember: 'Anyone else in the household?',
+  askMemberAlone: 'Just me',
+  guideCosts:
+    'What you pay for together: rent, power, insurance, streaming. Whatever sits here is taken off before the money is divided between you.',
+  guideOneOff:
+    'A larger purchase paid off over time. Put the sofa in over ten months and it weighs on the budget a little each month instead of all at once.',
+  guideLoans:
+    'Interest is worked out monthly on the debt, with amortization added separately. Once the loans are here you can see what they cost now and when you are debt free.',
+  guideIncome:
+    'Your income decides the size of your share. Enter what you take home after tax and the split comes out right.',
   history: 'History',
   total: 'Total',
   historyNote:

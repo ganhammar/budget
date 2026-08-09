@@ -93,11 +93,11 @@ export function OneOffCosts() {
         }
       >
         <div style={{ marginBottom: 12 }}>
-          <Note>
-            {t.oneOffNote}
-          </Note>
+          <Note>{budget.oneOffCosts.length === 0 ? t.guideOneOff : t.oneOffNote}</Note>
         </div>
-        {ongoing.length === 0 && <Empty text={t.noOngoingOneOffs} />}
+        {ongoing.length === 0 && budget.oneOffCosts.length > 0 && (
+          <Empty text={t.noOngoingOneOffs} />
+        )}
         <div className="list">{ongoing.map(row)}</div>
       </Card>
 

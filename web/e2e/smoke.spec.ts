@@ -281,3 +281,82 @@ test.describe('roles', () => {
     expect(me.emailReminders).toBe(false);
   });
 });
+
+/**
+ * The whole first-run path, on a household that has just been created. Each
+ * question is derived from the data, so this also proves a household cannot get
+ * stuck between steps.
+ */
+test.describe('first steps', () => {
+  test('walks a new household from nothing to a number', async ({ page, context, request }) => {
+    const email = `${unique('new')}@e2e.se`;
+    await signIn(context, email);
+    const cookie = `budget_session=${devSessionCookie(email)}`;
+    expect((await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).status())
+      .toBe(201);
+
+    await page.goto('/');
+
+    // Nothing entered: no figure is stated, because there is nothing to state.
+    await expect(page.locator('.hero')).toContainText(/Inget att räkna på än|Nothing to work out yet/);
+    await expect(page.locator('.first-step')).toContainText(/vanlig månad|normal month/);
+    await expect(page.locator('.first-step')).toContainText(/[Ee]fter skatt|[Aa]fter tax/);
+
+    // Answering moves the figure above it, which is the only reward on offer.
+    await page.locator('.first-step input').fill('32000');
+    await page.locator('.first-step button').click();
+
+    await expect(page.locator('.hero .value')).toBeVisible();
+    await expect(page.locator('.first-step')).toContainText(/delar ni på|do you share/);
+
+    // The costs section explains itself while it is empty.
+    await page.goto('/#costs');
+    await expect(page.locator('.card').first()).toContainText(/hyra, el|rent, power/);
+  });
+
+  test('stops asking once the household says it is one person', async ({ page, context, request }) => {
+    const email = `${unique('solo')}@e2e.se`;
+    await signIn(context, email);
+    const cookie = `budget_session=${devSessionCookie(email)}`;
+    const created = await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD });
+    const budget = await created.json();
+    const memberId = budget.members[0].id;
+
+    expect(
+      (
+        await request.put(`/api/members/${memberId}`, {
+          headers: { cookie },
+          data: { ...budget.members[0], baselineIncome: 32000 },
+        })
+      ).status(),
+    ).toBe(204);
+
+    const costId = unique('c');
+    expect(
+      (
+        await request.put(`/api/costs/${costId}`, {
+          headers: { cookie },
+          data: {
+            id: costId,
+            category: 'Boende',
+            description: 'Hyra',
+            amount: 12000,
+            intervalMonths: 1,
+            firstCharge: '2026-01',
+            payerId: null,
+          },
+        })
+      ).status(),
+    ).toBe(204);
+
+    await page.goto('/');
+    await expect(page.locator('.first-step')).toContainText(/fler i hushållet|else in the household/);
+
+    await page.getByRole('button', { name: /bara jag|just me/i }).click();
+    await expect(page.locator('.first-step')).toHaveCount(0);
+
+    // And it stays gone.
+    await page.reload();
+    await expect(page.locator('.first-step')).toHaveCount(0);
+  });
+});

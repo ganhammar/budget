@@ -6,6 +6,7 @@ import { currentMonth, formatMonth } from '../domain/month';
 import { Card, Empty, Field, MonthInput, Note, Stat } from './components';
 import { ForecastChart, ForecastTable } from './ForecastChart';
 import { IncomeBanner } from './IncomeBanner';
+import { FirstSteps, nothingToComputeYet } from './FirstSteps';
 import { useText } from '../i18n';
 
 const FORECAST_MONTHS = 24;
@@ -19,31 +20,32 @@ export function Overview() {
   const result = useMemo(() => calculateMonth(budget, month), [budget, month]);
   const points = useMemo(() => forecast(budget, FORECAST_MONTHS), [budget]);
 
-  const isEmpty =
-    budget.recurringCosts.length === 0 && budget.loans.length === 0 && budget.members.length <= 1;
+  // Nothing has been entered at all, so there is no figure to state. A zero here
+  // is a confident answer to a question the app has no data for.
+  const blank = nothingToComputeYet(result);
 
   return (
     <>
       <IncomeBanner />
-
-      {isEmpty && (
-        <Card title={t.getStarted}>
-          <Note>
-            {t.getStartedNote}
-          </Note>
-        </Card>
-      )}
 
       <Card title={t.monthLabel}>
         <Field label={t.showing}>
           <MonthInput value={month} onChange={setMonth} />
         </Field>
         <div className="hero">
+          {blank ? (
+            <span className="label" style={{ marginTop: 0 }}>
+              {t.nothingToCompute}
+            </span>
+          ) : (
+            <>
           <span className="value">{sek(result.surplus)}</span>
           {/* "each" is only true when the rule is an equal amount left over; under
               the others the leftovers differ and naming one figure would mislead. */}
           <span className="label">
-            {(budget.household.split ?? 'equalLeftover') === 'equalLeftover' ? (
+            {result.memberLines.length === 1 ? (
+              t.leftForOne
+            ) : (budget.household.split ?? 'equalLeftover') === 'equalLeftover' ? (
               <>
                 {t.leftToSplit(result.memberLines.length)}{' '}
                 <strong>{sek(result.surplusPerMember)}</strong> {t.each}
@@ -52,9 +54,14 @@ export function Overview() {
               t.leftAfterCosts
             )}
           </span>
+            </>
+          )}
         </div>
+
+        <FirstSteps />
       </Card>
 
+      {!blank && (
       <Card title={t.expenses}>
         <div className="stat-grid">
           <Stat label={t.incomes} value={sek(result.totalIncome)} />
@@ -69,7 +76,9 @@ export function Overview() {
           />
         </div>
       </Card>
+      )}
 
+      {!blank && (
       <Card title={`${t.toTransfer} · ${formatMonth(month)}`}>
         {result.memberLines.length === 0 ? (
           <Empty text={t.noActiveMembers} />
@@ -118,6 +127,7 @@ export function Overview() {
           </Note>
         </div>
       </Card>
+      )}
 
       {/* Without a recorded balance there is nothing to count forward from, and a
           card explaining its own absence is worse than no card. Recording one is

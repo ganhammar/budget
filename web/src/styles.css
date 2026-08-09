@@ -227,6 +227,36 @@ body {
   margin-bottom: 0;
 }
 
+/* Attached to the figure it changes, separated by the same hairline the rest of
+   the page uses to mean "different thing". */
+.first-step {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.first-step-q {
+  font-family: var(--serif);
+  font-size: 16px;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+
+.first-step-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.first-step-row > :first-child {
+  flex: 1;
+}
+
+.first-step-row .btn {
+  flex: 0 0 auto;
+}
+
 .household-balance {
   margin-top: 18px;
   padding-top: 16px;

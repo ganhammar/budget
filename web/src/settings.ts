@@ -10,6 +10,7 @@ import type { Language, ThemeChoice } from './domain/types';
  */
 const THEME_KEY = 'budget.theme';
 const LANGUAGE_KEY = 'budget.language';
+const SOLO_KEY = 'budget.solo';
 
 function read(key: string): string | null {
   try {
@@ -68,4 +69,20 @@ export function useTheme(choice: ThemeChoice): void {
 
 export function rememberLanguage(language: Language): void {
   write(LANGUAGE_KEY, language);
+}
+
+/**
+ * Whether the household has said it is one person.
+ *
+ * Kept locally rather than on the record: it answers a question the app asked,
+ * not a fact about the household, and inviting someone later settles it properly
+ * by making the question moot. Per device, so at worst it is asked once more
+ * somewhere else and dismissed again.
+ */
+export function livesAlone(): boolean {
+  return read(SOLO_KEY) === 'true';
+}
+
+export function rememberLivesAlone(): void {
+  write(SOLO_KEY, 'true');
 }

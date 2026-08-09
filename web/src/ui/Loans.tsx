@@ -369,7 +369,7 @@ export function Loans() {
           </button>
         }
       >
-        {budget.loans.length === 0 && <Empty text={t.noLoans} />}
+        {budget.loans.length === 0 && <Note>{t.guideLoans}</Note>}
         <div className="list">
           {result.loanLines.map((line) => (
             <ListRow

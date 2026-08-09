@@ -190,7 +190,12 @@ export function RecurringCosts() {
           </button>
         }
       >
-        {live.length === 0 && <Empty text={t.noActiveCosts} />}
+        {live.length === 0 &&
+          (budget.recurringCosts.length === 0 ? (
+            <Note>{t.guideCosts}</Note>
+          ) : (
+            <Empty text={t.noActiveCosts} />
+          ))}
         {groups.map(([category, costs]) => (
           <div key={category} style={{ marginBottom: 14 }}>
             <div className="group-label">

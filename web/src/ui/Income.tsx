@@ -125,9 +125,7 @@ export function Income() {
 
       <Card title={t.normalIncome}>
         <div style={{ marginBottom: 14 }}>
-          <Note>
-            {t.normalIncomeNote}
-          </Note>
+          <Note>{me.baselineIncome === 0 ? t.guideIncome : t.normalIncomeNote}</Note>
         </div>
         {members.map((member) => (
           <Field key={member.id} label={member.name}>
