@@ -3,6 +3,7 @@ import { useBudget, newId } from '../store/store';
 import type { Member, Role, SplitRule } from '../domain/types';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
+import { bufferGoal } from '../domain/engine';
 import { AmountInput, Card, Field, ListRow, MonthInput, Note, Sheet } from './components';
 import { api } from '../api/client';
 import { useText } from '../i18n';
@@ -101,6 +102,10 @@ export function Household() {
     update((b) => ({ ...b, household: { ...b.household, split } }));
   }
 
+  function setBufferMonths(months: number) {
+    update((b) => ({ ...b, household: { ...b.household, bufferMonths: months } }));
+  }
+
   function saveBalance(amount: number, month: string) {
     update((b) => ({ ...b, accountBalance: { amount, month } }));
     setEditingBalance(false);
@@ -108,6 +113,8 @@ export function Household() {
 
   const adminCount = budget.members.filter((m) => m.role === 'admin').length;
   const balance = budget.accountBalance;
+  const months = budget.household.bufferMonths;
+  const goal = bufferGoal(budget, currentMonth());
   const split = budget.household.split ?? 'equalLeftover';
 
   return (
@@ -185,6 +192,25 @@ export function Household() {
             amount={balance ? sek(balance.amount) : '—'}
             onClick={() => setEditingBalance(true)}
           />
+
+          {/* A goal for the figure above it, so it sits with it. Any member may set
+              it: the account is shared and so is the responsibility for it. */}
+          <Field
+            label={t.bufferGoalLabel}
+            hint={goal > 0 ? t.bufferHint(sek(goal)) : t.bufferHintUnset}
+          >
+            <select
+              value={months ?? ''}
+              onChange={(e) => setBufferMonths(Number(e.target.value))}
+            >
+              {months === undefined && <option value="">{t.bufferUnset}</option>}
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {t.bufferMonths(m)}
+                </option>
+              ))}
+            </select>
+          </Field>
         </div>
 
         {!isAdmin && (

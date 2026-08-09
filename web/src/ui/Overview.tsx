@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useBudget } from '../store/store';
-import { calculateMonth, forecast, savingsTotal } from '../domain/engine';
+import {
+  bufferGoal,
+  bufferTopUp,
+  calculateMonth,
+  forecast,
+  incomeAboveNormal,
+  savingsTotal,
+} from '../domain/engine';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
 import { Card, Empty, Field, MonthInput, Note, Stat } from './components';
@@ -17,8 +24,24 @@ export function Overview() {
   const [month, setMonth] = useState(currentMonth());
   const [showTable, setShowTable] = useState(false);
 
-  const result = useMemo(() => calculateMonth(budget, month), [budget, month]);
   const points = useMemo(() => forecast(budget, FORECAST_MONTHS), [budget]);
+
+  /*
+   * A good month pays a little towards the buffer. Worked out here rather than in
+   * the engine because it needs the account balance, which comes from the forecast,
+   * which is built from the engine's own results.
+   *
+   * The forecast itself is left alone: future months are estimated at normal
+   * income and so are never good ones, which keeps projections conservative and
+   * means the buffer only ever appears once a month has actually gone well.
+   */
+  const topUp = useMemo(() => {
+    const opening = points.find((p) => p.month === month)?.opening;
+    if (opening === undefined) return 0;
+    return bufferTopUp(bufferGoal(budget, month), opening, incomeAboveNormal(budget, month));
+  }, [budget, month, points]);
+
+  const result = useMemo(() => calculateMonth(budget, month, topUp), [budget, month, topUp]);
 
   // Nothing has been entered at all, so there is no figure to state. A zero here
   // is a confident answer to a question the app has no data for.
@@ -69,6 +92,9 @@ export function Overview() {
           <Stat label={t.shared} value={sek(result.recurringTotal)} />
           <Stat label={t.loans} value={sek(result.loanTotal)} />
           <Stat label={t.oneOffCosts} value={sek(result.oneOffTotal)} />
+          {result.bufferTopUp > 0 && (
+            <Stat label={t.buffer} value={sek(result.bufferTopUp)} />
+          )}
           <Stat
             label={t.balance}
             value={sek(result.surplus)}
@@ -80,6 +106,14 @@ export function Overview() {
 
       {!blank && (
       <Card title={`${t.toTransfer} · ${formatMonth(month)}`}>
+        {/* Said once, at the top, rather than as a line inside each person's block.
+            It is one decision the household made about a shared account, and a
+            transfer that quietly grew is the fastest way to stop trusting a budget. */}
+        {result.bufferTopUp > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <Note>{t.bufferNote(sek(result.bufferTopUp))}</Note>
+          </div>
+        )}
         {result.memberLines.length === 0 ? (
           <Empty text={t.noActiveMembers} />
         ) : (

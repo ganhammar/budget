@@ -15,7 +15,9 @@ public sealed record Household(
     string Name,
     string Created,
     List<string>? Categories = null,
-    string? Split = null);
+    string? Split = null,
+    /// <summary>Months of commitments to keep in the joint account, 1 to 12.</summary>
+    int? BufferMonths = null);
 
 /// <summary>
 /// Preferences are optional: records written before they existed simply have null,
@@ -160,6 +162,8 @@ public sealed record RenameHouseholdRequest(string Name);
 public sealed record CategoriesRequest(List<string> Categories);
 
 public sealed record SplitRequest(string Split);
+
+public sealed record BufferRequest(int Months);
 
 public sealed record PushSubscribeRequest(string Endpoint, string P256dh, string Auth);
 

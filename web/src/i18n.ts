@@ -125,6 +125,16 @@ const sv = {
   leftToSplit: (count: number) => `kvar att dela på ${count} ·`,
   // Nothing is being divided when there is one of you.
   leftForOne: 'kvar',
+  buffer: 'Buffert',
+  bufferNote: (amount: string) =>
+    `Månaden gick bättre än normalt, så ${amount} går till bufferten utöver kostnaderna.`,
+  bufferGoalLabel: 'Buffertmål',
+  bufferMonths: (months: number) => (months === 1 ? '1 månad' : `${months} månader`),
+  bufferUnset: 'Inget mål satt',
+  bufferHint: (goal: string) =>
+    `Så mycket vill ni ha på det gemensamma kontot: ${goal}. På månader som går bättre än normalt läggs en liten del undan tills ni är där.`,
+  bufferHintUnset:
+    'Hur många månaders kostnader ni vill ha på det gemensamma kontot. På månader som går bättre än normalt läggs en liten del undan tills ni är där.',
   leftAfterCosts: 'kvar efter kostnader',
   splitRule: 'Fördelning',
   splitEqualLeftover: 'Alla får lika mycket kvar',
@@ -504,6 +514,16 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   showing: 'Showing',
   leftToSplit: (count: number) => `left to split between ${count} ·`,
   leftForOne: 'left',
+  buffer: 'Buffer',
+  bufferNote: (amount: string) =>
+    `The month came in better than normal, so ${amount} goes to the buffer on top of the costs.`,
+  bufferGoalLabel: 'Buffer goal',
+  bufferMonths: (months: number) => (months === 1 ? '1 month' : `${months} months`),
+  bufferUnset: 'No goal set',
+  bufferHint: (goal: string) =>
+    `What you want sitting in the joint account: ${goal}. On months that come in better than normal, a little is set aside until you are there.`,
+  bufferHintUnset:
+    'How many months of costs you want in the joint account. On months that come in better than normal, a little is set aside until you are there.',
   leftAfterCosts: 'left after costs',
   splitRule: 'Split',
   splitEqualLeftover: 'Everyone keeps the same',

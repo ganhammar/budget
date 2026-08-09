@@ -360,3 +360,59 @@ test.describe('first steps', () => {
     await expect(page.locator('.first-step')).toHaveCount(0);
   });
 });
+
+test.describe('buffer', () => {
+  test('any member may set the goal, and only within one to twelve months', async ({ request }) => {
+    const email = `${unique('bufadmin')}@e2e.se`;
+    const admin = `budget_session=${devSessionCookie(email)}`;
+    const created = await request.post('/api/households', { headers: { cookie: admin }, data: HOUSEHOLD });
+    expect(created.status()).toBe(201);
+
+    const memberEmail = `${unique('bufmember')}@e2e.se`;
+    const memberId = unique('m');
+    await request.put(`/api/members/${memberId}`, {
+      headers: { cookie: admin },
+      data: { id: memberId, name: 'Petra', email: memberEmail, role: 'member', status: 'active', baselineIncome: 25500 },
+    });
+    const member = `budget_session=${devSessionCookie(memberEmail)}`;
+
+    // Shared account, shared responsibility: not an admin-only setting.
+    expect((await request.put('/api/household/buffer', { headers: { cookie: member }, data: { months: 3 } })).status())
+      .toBe(204);
+
+    for (const months of [0, -1, 13]) {
+      expect((await request.put('/api/household/buffer', { headers: { cookie: admin }, data: { months } })).status())
+        .toBe(400);
+    }
+
+    const budget = await (await request.get('/api/budget', { headers: { cookie: admin } })).json();
+    expect(budget.household.bufferMonths).toBe(3);
+  });
+
+  test('a good month sets a little aside, a normal one does not', async ({ page, context, request }) => {
+    const email = `${unique('buf')}@e2e.se`;
+    const cookie = `budget_session=${devSessionCookie(email)}`;
+    await signIn(context, email);
+    const budget = await (await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).json();
+    const me = budget.members[0];
+    await request.put(`/api/members/${me.id}`, { headers: { cookie }, data: { ...me, baselineIncome: 48000 } });
+
+    const costId = unique('c');
+    await request.put(`/api/costs/${costId}`, {
+      headers: { cookie },
+      data: { id: costId, category: 'Boende', description: 'Hyra', amount: 12000, intervalMonths: 1, firstCharge: '2026-01', payerId: null },
+    });
+
+    const month = new Date().toISOString().slice(0, 7);
+    await request.put('/api/account-balance', { headers: { cookie }, data: { month, amount: 5000 } });
+    await request.put('/api/household/buffer', { headers: { cookie }, data: { months: 2 } });
+
+    // Nothing entered yet, so the month is an estimate and never a good one.
+    await page.goto('/');
+    await expect(page.getByText(/bufferten|the buffer/i)).toHaveCount(0);
+
+    await request.put(`/api/income/${month}/${me.id}`, { headers: { cookie }, data: { amount: 58000, enteredById: null } });
+    await page.reload();
+    await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();
+  });
+});

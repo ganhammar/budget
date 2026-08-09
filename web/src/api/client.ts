@@ -77,6 +77,9 @@ export const api = {
       body: JSON.stringify({ categories }),
     }),
 
+  setBuffer: (months: number) =>
+    request<void>('/household/buffer', { method: 'PUT', body: JSON.stringify({ months }) }),
+
   setSplit: (split: string) =>
     request<void>('/household/split', { method: 'PUT', body: JSON.stringify({ split }) }),
 

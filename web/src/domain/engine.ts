@@ -462,13 +462,20 @@ export interface MonthResult {
   surplusPerMember: number;
   loanLines: LoanLine[];
   memberLines: MemberLine[];
+  /** Set aside into the joint account this month, above what it costs to run. */
+  bufferTopUp: number;
   /** Actual withdrawals from the joint account this month, lumpy rather than smoothed. */
   jointOutflow: number;
   outflowItems: { label: string; amount: number }[];
   jointInflow: number;
 }
 
-function calculate(budget: Budget, month: Month, debts: Map<string, number>): MonthResult {
+function calculate(
+  budget: Budget,
+  month: Month,
+  debts: Map<string, number>,
+  buffer = 0,
+): MonthResult {
   const loanLines: LoanLine[] = budget.loans.map((loan) => {
     const debt = debts.get(loan.id) ?? 0;
     const interest = monthlyInterest(loan, debt, month);
@@ -489,7 +496,7 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
   const activeOneOffs = budget.oneOffCosts.filter((c) => isActiveIn(c, month));
   const oneOffTotal = activeOneOffs.reduce((sum, c) => sum + monthlyShare(c), 0);
   const loanTotal = loanLines.reduce((sum, l) => sum + l.total, 0);
-  const totalCosts = recurringTotal + oneOffTotal + loanTotal;
+  const totalCosts = recurringTotal + oneOffTotal + loanTotal + buffer;
 
   const members = activeMembers(budget);
   const totalIncome = members.reduce((sum, m) => sum + incomeFor(budget, m.id, month), 0);
@@ -551,24 +558,96 @@ function calculate(budget: Budget, month: Month, debts: Map<string, number>): Mo
     surplusPerMember,
     loanLines,
     memberLines,
+    bufferTopUp: buffer,
     jointOutflow: outflowItems.reduce((sum, i) => sum + i.amount, 0),
     outflowItems,
     jointInflow: memberLines.reduce((sum, l) => sum + l.toTransfer, 0),
   };
 }
 
-export function calculateRange(budget: Budget, from: Month, to: Month): MonthResult[] {
+export function calculateRange(
+  budget: Budget,
+  from: Month,
+  to: Month,
+  buffer = 0,
+): MonthResult[] {
   const debts = debtAtStartOf(budget, from);
   const out: MonthResult[] = [];
   for (const month of monthRange(from, to)) {
-    out.push(calculate(budget, month, debts));
+    out.push(calculate(budget, month, debts, buffer));
     applyAmortization(budget, debts, month);
   }
   return out;
 }
 
-export function calculateMonth(budget: Budget, month: Month): MonthResult {
-  return calculateRange(budget, month, month)[0];
+/**
+ * `buffer` is money set aside into the joint account on top of what the month
+ * costs. It is passed in rather than worked out here because it depends on the
+ * account balance, which depends on the forecast, which is built from these
+ * results: working it out inside would be circular. The forecast passes nothing,
+ * so projections stay conservative and never assume a good month.
+ */
+export function calculateMonth(budget: Budget, month: Month, buffer = 0): MonthResult {
+  return calculateRange(budget, month, month, buffer)[0];
+}
+
+/**
+ * What a month of being this household costs on average over the coming year:
+ * recurring costs, loan interest and amortization. One-off costs are left out
+ * because they are already spread over their own months and pay themselves off.
+ *
+ * Averaged over twelve months because that is what a buffer is for. Quarterly
+ * insurance and annual fees are exactly the months it has to absorb, and a single
+ * month's figure would miss them.
+ */
+export function averageCommitment(budget: Budget, from: Month): number {
+  const months = calculateRange(budget, from, addMonths(from, 11));
+  if (months.length === 0) return 0;
+
+  const total = months.reduce((sum, m) => sum + m.recurringTotal + m.loanTotal, 0);
+  return total / months.length;
+}
+
+/** The balance the household is aiming to keep, or 0 when no goal is set. */
+export function bufferGoal(budget: Budget, from: Month): number {
+  const months = budget.household.bufferMonths;
+  if (!months) return 0;
+  return averageCommitment(budget, from) * months;
+}
+
+/** A tenth of what was unexpected, and never more than the goal is short by. */
+const BUFFER_SHARE = 0.1;
+
+/**
+ * How much of a good month to set aside.
+ *
+ * Only ever a slice of income that was not expected, so a good month can never
+ * become a tight one, and never more than the goal is still short by, so it stops
+ * on arrival rather than overshooting. Rounded to the hundred, because a transfer
+ * with a long tail invites the question of where the last nineteen kronor came
+ * from.
+ */
+export function bufferTopUp(goal: number, balance: number, excess: number): number {
+  if (goal <= 0 || excess <= 0) return 0;
+
+  const gap = goal - balance;
+  if (gap <= 0) return 0;
+
+  return Math.round(Math.min(excess * BUFFER_SHARE, gap) / 100) * 100;
+}
+
+/**
+ * How far above its normal income the household actually came in this month.
+ * Measured on the household rather than per member: the top-up is a shared cost,
+ * so one person's bonus would otherwise be taken partly out of the other's share.
+ */
+export function incomeAboveNormal(budget: Budget, month: Month): number {
+  const members = activeMembers(budget);
+  if (!members.some((m) => hasActualIncome(budget, m.id, month))) return 0;
+
+  const actual = members.reduce((sum, m) => sum + incomeFor(budget, m.id, month), 0);
+  const normal = members.reduce((sum, m) => sum + m.baselineIncome, 0);
+  return Math.max(0, actual - normal);
 }
 
 /* ---------- Joint account forecast ---------- */

@@ -487,6 +487,28 @@ api.MapPut("/household/split", async (
     return Results.NoContent();
 });
 
+// Anyone in the household may set it. It is a shared account and a shared
+// responsibility, unlike the split rule, which decides what each person owes.
+api.MapPut("/household/buffer", async (
+    BufferRequest request, HttpContext ctx, BudgetStore store, SessionTokens sessions,
+    CancellationToken ct) =>
+{
+    var caller = await CallerResolver.ResolveAsync(ctx, store, sessions, ct);
+    if (!caller.HasHousehold) return Results.Unauthorized();
+
+    // No zero: a household with no buffer has no goal, which is the absent value,
+    // not a goal of nothing.
+    if (request.Months is < 1 or > 12)
+        return Error("Målet är mellan 1 och 12 månader.", 400);
+
+    var meta = await store.GetMetaAsync(caller.HouseholdId, ct);
+    if (meta is null) return Results.NotFound(new ErrorResponse("Inget hushåll"));
+
+    await store.PutMetaAsync(
+        meta with { Household = meta.Household with { BufferMonths = request.Months } }, ct);
+    return Results.NoContent();
+});
+
 /* ---------- Push notifications ---------- */
 
 // The public key is not a secret: the browser needs it to create a subscription.

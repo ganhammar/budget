@@ -7,10 +7,14 @@
  */
 import type { Budget, RecurringCost, SplitRule } from '../src/domain/types';
 import {
+  averageCommitment,
+  bufferGoal,
+  bufferTopUp,
   calculateMonth,
   debtAtStartOf,
   effectiveRate,
   forecast,
+  incomeAboveNormal,
   savingsTotal,
 } from '../src/domain/engine';
 import {
@@ -19,6 +23,7 @@ import {
   membersAwaitingIncome,
   shouldPromptForIncome,
 } from '../src/domain/income';
+import { addMonths } from '../src/domain/month';
 
 const ANTON = 'anton';
 const PETRA = 'petra';
@@ -282,6 +287,61 @@ console.log('\n— The household split rule —');
     const paidDirectly = r.petra.paidDirectly + r.anton.paidDirectly;
     check(`${name}: transfers plus direct payments cover the costs`, transferred + paidDirectly, r.costs, 0.001);
   }
+}
+
+console.log('\n— The buffer —');
+{
+  const goalMonths = 2;
+  const withGoal = {
+    ...sheetBudget,
+    household: { ...sheetBudget.household, bufferMonths: goalMonths },
+  };
+
+  // Recurring plus loans, averaged over a year. One-off costs are excluded, so
+  // adding one must not move the goal.
+  const average = averageCommitment(withGoal, MONTH);
+  check('average commitment excludes one-off costs', averageCommitment({
+    ...withGoal,
+    oneOffCosts: [{ id: 'x', description: 'Soffa', total: 30000, start: MONTH, end: addMonths(MONTH, 10), payerId: undefined }],
+  }, MONTH), average, 0.001);
+
+  check('goal is that many months of it', bufferGoal(withGoal, MONTH), average * goalMonths, 0.001);
+  check('no goal, no target', bufferGoal(sheetBudget, MONTH), 0, 0.001);
+
+  // Only ever a slice of what was not expected, and never past the goal.
+  check('a tenth of the excess', bufferTopUp(100000, 0, 12000), 1200, 0.001);
+  check('nothing when the month was normal', bufferTopUp(100000, 0, 0), 0, 0.001);
+  check('nothing once the goal is met', bufferTopUp(100000, 100000, 12000), 0, 0.001);
+  check('never more than the gap', bufferTopUp(100000, 99500, 12000), 500, 0.001);
+  check('rounded to the hundred', bufferTopUp(100000, 0, 12345), 1200, 0.001);
+
+  // A good month is the household coming in above its normal income, not one
+  // person doing well while the other does not.
+  const good = {
+    ...sheetBudget,
+    income: [
+      { memberId: ANTON, month: MONTH, amount: 58000, enteredById: null },
+      { memberId: PETRA, month: MONTH, amount: 37887, enteredById: null },
+    ],
+  };
+  check('excess is measured on the household', incomeAboveNormal(good, MONTH), 10000, 0.001);
+
+  const mixed = {
+    ...sheetBudget,
+    income: [
+      { memberId: ANTON, month: MONTH, amount: 58000, enteredById: null },
+      { memberId: PETRA, month: MONTH, amount: 27887, enteredById: null },
+    ],
+  };
+  check('one good and one bad is not a good month', incomeAboveNormal(mixed, MONTH), 0, 0.001);
+  check('an estimated month is never a good one', incomeAboveNormal(sheetBudget, MONTH), 0, 0.001);
+
+  // What is set aside is shared like any other cost, and lands in the account.
+  const plain = calculateMonth(sheetBudget, MONTH);
+  const topped = calculateMonth(sheetBudget, MONTH, 2000);
+  check('the top-up is added to the costs', topped.totalCosts - plain.totalCosts, 2000, 0.001);
+  check('and to what reaches the account', topped.jointInflow - plain.jointInflow, 2000, 0.001);
+  check('leaving that much less over', plain.surplus - topped.surplus, 2000, 0.001);
 }
 
 console.log('\n— A loan does not exist before it was taken out —');
