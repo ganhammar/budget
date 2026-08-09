@@ -141,7 +141,8 @@ const sv = {
   estimatedUpdate: 'Uppdatera saldot',
   estimatedFrom: (month: string, amount: string) => `Utifrån ${amount} som angavs för ${month}`,
   skipBuffer: 'Hoppa över den här månaden.',
-  bufferSkipped: 'Ingen buffertuppbyggnad den här månaden.',
+  bufferSkipped: (amount: string) =>
+    `${amount} skulle ha lagts undan den här månaden, men ni hoppade över.`,
   undoSkipBuffer: 'Ångra',
   leftAfterCosts: 'kvar efter kostnader',
   splitRule: 'Fördelning',
@@ -538,7 +539,8 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   estimatedUpdate: 'Update the balance',
   estimatedFrom: (month: string, amount: string) => `Based on ${amount} recorded for ${month}`,
   skipBuffer: 'Skip this month.',
-  bufferSkipped: 'No buffer build-up this month.',
+  bufferSkipped: (amount: string) =>
+    `${amount} would have been set aside this month, but you skipped it.`,
   undoSkipBuffer: 'Undo',
   leftAfterCosts: 'left after costs',
   splitRule: 'Split',

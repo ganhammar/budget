@@ -421,6 +421,17 @@ console.log('\n— The buffer —');
     }, 6);
     check('skipping sets nothing aside', skipped[0].bufferTopUp, 0, 0.001);
     check('and leaves the line where it was', skipped[5].closing, flat[5].closing, 0.001);
+
+    // A skip reports what it turned down, so undoing it has something to restore.
+    check('a skipped month says what it declined', skipped[0].bufferDeclined, setAside, 0.001);
+
+    // A month that would have set nothing aside has nothing to undo, even if it
+    // is on the list: the goal was turned off after the fact here.
+    const pointless = forecast({
+      ...goodMonth,
+      household: { ...goodMonth.household, bufferMonths: 0, bufferSkipped: [MONTH] },
+    }, 6);
+    check('nothing to undo when there was nothing to skip', pointless[0].bufferDeclined, 0, 0.001);
   }
   check('and to what reaches the account', topped.jointInflow - plain.jointInflow, 2000, 0.001);
   check('leaving that much less over', plain.surplus - topped.surplus, 2000, 0.001);

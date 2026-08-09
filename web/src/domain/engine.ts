@@ -720,6 +720,8 @@ export interface ForecastPoint {
   outflow: number;
   /** Set aside into the account this month, already counted in `inflow`. */
   bufferTopUp: number;
+  /** What this month would have set aside had it not been skipped. */
+  bufferDeclined: number;
   closing: number;
   items: { label: string; amount: number; oneOff?: boolean }[];
 }
@@ -748,9 +750,11 @@ export function forecast(budget: Budget, months: number): ForecastPoint[] {
   let balance = budget.accountBalance.amount;
   return results.map((result) => {
     const opening = balance;
-    const topUp = bufferSkipped(budget, result.month)
-      ? 0
-      : bufferTopUp(goal, opening, incomeAboveNormal(budget, result.month), normal);
+    // Worked out either way, so a skipped month can say what it turned down and a
+    // month that would have contributed nothing has nothing to undo.
+    const wouldBe = bufferTopUp(goal, opening, incomeAboveNormal(budget, result.month), normal);
+    const declined = bufferSkipped(budget, result.month);
+    const topUp = declined ? 0 : wouldBe;
 
     // Everything set aside is transferred in and stays there, so it lands in the
     // account whole rather than being netted against anything going out.
@@ -763,6 +767,7 @@ export function forecast(budget: Budget, months: number): ForecastPoint[] {
       inflow,
       outflow: result.jointOutflow,
       bufferTopUp: topUp,
+      bufferDeclined: declined ? wouldBe : 0,
       closing,
       // Only the lumpy items are worth surfacing in the chart tooltip.
       items: result.outflowItems

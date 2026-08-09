@@ -445,11 +445,12 @@ test('a month can opt out of its own buffer', async ({ page, context, request })
   await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();
 
   await page.getByRole('button', { name: /hoppa över|skip this month/i }).click();
-  await expect(page.getByText(/Ingen buffertuppbyggnad|No buffer build-up/i)).toBeVisible();
+  // Says what the skip cost, so undoing it has an obvious point.
+  await expect(page.getByText(/skulle ha lagts undan|would have been set aside/i)).toBeVisible();
 
   // It is the household's answer, not this browser's.
   await page.reload();
-  await expect(page.getByText(/Ingen buffertuppbyggnad|No buffer build-up/i)).toBeVisible();
+  await expect(page.getByText(/skulle ha lagts undan|would have been set aside/i)).toBeVisible();
 
   await page.getByRole('button', { name: /ångra|undo/i }).click();
   await expect(page.getByText(/bufferten|the buffer/i)).toBeVisible();

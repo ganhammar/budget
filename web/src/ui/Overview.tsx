@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useBudget } from '../store/store';
 import {
-  bufferSkipped,
   calculateMonth,
   estimatedBalance,
   forecast,
@@ -29,8 +28,11 @@ export function Overview() {
 
   // Read from the forecast rather than worked out again here, so the figure in the
   // transfer and the figure in the chart can never disagree.
-  const topUp = points.find((p) => p.month === month)?.bufferTopUp ?? 0;
-  const skipped = bufferSkipped(budget, month);
+  const point = points.find((p) => p.month === month);
+  const topUp = point?.bufferTopUp ?? 0;
+  // Only what a skip actually cost. A month that would have set nothing aside has
+  // nothing to undo, so it says nothing rather than offering an empty action.
+  const declined = point?.bufferDeclined ?? 0;
   const estimated = estimatedBalance(budget, currentMonth());
 
   const result = useMemo(() => calculateMonth(budget, month, topUp), [budget, month, topUp]);
@@ -127,10 +129,10 @@ export function Overview() {
 
         {/* A month that opted out says so, and can change its mind. Silence would
             look like the month simply was not good enough. */}
-        {skipped && (
+        {declined > 0 && (
           <div className="buffer-note">
             <Note>
-              {t.bufferSkipped}{' '}
+              {t.bufferSkipped(sek(declined))}{' '}
               <button className="linkish" onClick={() => setSkipped(false)}>
                 {t.undoSkipBuffer}
               </button>
