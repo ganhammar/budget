@@ -125,7 +125,7 @@ const sv = {
   leftToSplit: (count: number) => `kvar att dela på ${count} ·`,
   // Nothing is being divided when there is one of you.
   leftForOne: 'kvar',
-  buffer: 'Buffert',
+  buffer: 'Buffertuppbyggnad',
   bufferNote: (amount: string) =>
     `Månaden gick bättre än normalt, så ${amount} går till bufferten utöver kostnaderna.`,
   bufferGoalLabel: 'Buffertmål',
@@ -514,7 +514,7 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   showing: 'Showing',
   leftToSplit: (count: number) => `left to split between ${count} ·`,
   leftForOne: 'left',
-  buffer: 'Buffer',
+  buffer: 'Buffer build-up',
   bufferNote: (amount: string) =>
     `The month came in better than normal, so ${amount} goes to the buffer on top of the costs.`,
   bufferGoalLabel: 'Buffer goal',
