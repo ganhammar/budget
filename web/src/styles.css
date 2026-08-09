@@ -121,17 +121,25 @@ body {
   z-index: 20;
   display: flex;
   justify-content: center;
-  gap: 22px;
-  padding: 13px 20px calc(15px + env(safe-area-inset-bottom));
+  /* Spacing that used to sit here is on the links instead, so each one is a target
+     the height of the bar rather than the height of its text. */
+  gap: 6px;
+  padding: 0 20px env(safe-area-inset-bottom);
   background: var(--paper);
   border-top: 1.5px solid var(--rule-strong);
 }
 
 .nav a {
+  display: flex;
+  align-items: center;
+  /* The horizontal padding replaces most of the old gap, so the words sit where
+     they always did while the box around them is worth aiming at. */
+  padding: 13px 8px 15px;
   font-family: var(--serif);
   font-size: 14px;
   color: var(--muted);
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Ink and weight carry the current tab; a rule under it would be a fourth kind of
@@ -1104,12 +1112,13 @@ input:disabled {
  * interruption to it.
  */
 .banner {
-  margin: 0 -20px 4px;
+  margin: 0 -20px;
   padding: 16px 20px 18px;
   /* Twice the tint of a hovered row, so it is plainly a different surface without
      becoming a coloured alert. Mixed from the ink so it follows the theme. */
   background: color-mix(in srgb, var(--ink) 8%, transparent);
-  border-bottom: 1px solid var(--rule);
+  /* No borders of its own. The topbar rules above it and the first card rules
+     below it, and adding either would double one of them. */
 }
 
 .banner-head {
