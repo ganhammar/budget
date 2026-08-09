@@ -1094,10 +1094,22 @@ input:disabled {
 
 /* ---------- Banner ---------- */
 
+/*
+ * A band rather than another ruled section. It sits directly under the topbar,
+ * whose own rule already separates it, so a border here made two lines with a
+ * hair of paper between them.
+ *
+ * Bled to the full width against the content's padding, because a banner that
+ * stops where the columns stop reads as a row of the ledger instead of an
+ * interruption to it.
+ */
 .banner {
-  border-top: 1.5px solid var(--ink);
+  margin: 0 -20px 4px;
+  padding: 16px 20px 18px;
+  /* Twice the tint of a hovered row, so it is plainly a different surface without
+     becoming a coloured alert. Mixed from the ink so it follows the theme. */
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
   border-bottom: 1px solid var(--rule);
-  padding: 14px 0;
 }
 
 .banner-head {
@@ -1109,8 +1121,9 @@ input:disabled {
 
 .banner-title {
   font-family: var(--serif);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .banner-close {
