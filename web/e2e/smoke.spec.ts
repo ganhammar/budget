@@ -506,10 +506,10 @@ test('a one-off can be taken out of the buffer instead of repaid', async ({ page
   await page.locator('.sheet input[type="text"], .sheet input:not([type])').first().fill('Kök');
   await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('9000');
 
-  // The choice is a field like any other, present before an amount is typed.
-  const repayment = page.locator('.sheet select').first();
-  await expect(repayment).toBeVisible();
-  await repayment.selectOption('buffer');
+  // A field like any other, present before an amount is typed.
+  const takeFromBuffer = page.locator('.check-control input');
+  await expect(takeFromBuffer).toBeVisible();
+  await takeFromBuffer.check();
 
   // The warning states what is left, so the cost of doing it is on screen.
   await expect(page.getByText(/lämnar det gemensamma kontot|leaves the joint account/i)).toBeVisible();
@@ -544,10 +544,12 @@ test('absorbing is refused when it would take most of the buffer', async ({ page
 
   // Inside four fifths of 10 000: allowed.
   await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('7000');
-  await expect(page.locator('.sheet select option[value="buffer"]')).toBeEnabled();
+  await expect(page.locator('.check-control input')).toBeEnabled();
 
   // Past it: refused, and it says why.
   await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('9000');
-  await expect(page.locator('.sheet select option[value="buffer"]')).toBeDisabled();
-  await expect(page.getByText(/för stor del av bufferten|too much of the buffer/i)).toBeVisible();
+  await expect(page.locator('.check-control input')).toBeDisabled();
+  // The reason names the ceiling and where it comes from, not just "too big".
+  await expect(page.getByText(/Högst|At most/)).toBeVisible();
+  await expect(page.getByText(/8[\s,]000/)).toBeVisible();
 });

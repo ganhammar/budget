@@ -166,17 +166,29 @@ export function OneOffCosts() {
           {bufferGoal(budget, currentMonth()) > 0 && (
             <Field
               label={t.repayment}
-              hint={draft.total > 0 && !fits ? t.fromBufferTooBig : undefined}
+              // A disabled option inside a closed select explains nothing, so the
+              // reason sits under the field either way, and names the ceiling
+              // rather than calling the amount too big.
+              hint={
+                draft.total <= 0
+                  ? t.fromBufferNoAmount
+                  : fits
+                    ? undefined
+                    : t.fromBufferTooBig(
+                        sek(Math.floor(available * MOST_OF_BUFFER)),
+                        sek(Math.max(0, available)),
+                      )
+              }
             >
-              <select
-                value={draft.fromBuffer ? 'buffer' : 'repay'}
-                onChange={(e) => setDraft({ ...draft, fromBuffer: e.target.value === 'buffer' })}
-              >
-                <option value="repay">{t.repayOverTime}</option>
-                <option value="buffer" disabled={!fits}>
-                  {t.takeFromBuffer}
-                </option>
-              </select>
+              <label className={`check-control ${fits ? '' : 'is-disabled'}`}>
+                <input
+                  type="checkbox"
+                  checked={draft.fromBuffer ?? false}
+                  disabled={!fits}
+                  onChange={(e) => setDraft({ ...draft, fromBuffer: e.target.checked })}
+                />
+                {t.takeFromBuffer}
+              </label>
             </Field>
           )}
 

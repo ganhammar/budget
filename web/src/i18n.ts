@@ -131,11 +131,12 @@ const sv = {
   fromBufferBadge: 'Ur bufferten',
   fromBufferRow: 'Betalas inte tillbaka',
   repayment: 'Betalning',
-  repayOverTime: 'Betala tillbaka över tid',
-  takeFromBuffer: 'Ta ur bufferten',
+  takeFromBuffer: 'Ta det ur bufferten',
   fromBufferWarning: (left: string) =>
     `Hela beloppet lämnar det gemensamma kontot och ingen betalar tillbaka det. Kvar blir ${left}, och bufferten byggs bara upp igen på månader som går bättre än normalt.`,
-  fromBufferTooBig: 'Beloppet skulle ta för stor del av bufferten.',
+  fromBufferTooBig: (most: string, held: string) =>
+    `Högst ${most} kan tas ur bufferten, som beräknas hålla ${held}.`,
+  fromBufferNoAmount: 'Ange ett belopp för att kunna ta det ur bufferten.',
   bufferNote: (amount: string) =>
     `Månaden gick bättre än normalt, så ${amount} går till bufferten utöver kostnaderna.`,
   bufferGoalLabel: 'Buffertmål',
@@ -539,11 +540,12 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   fromBufferBadge: 'From the buffer',
   fromBufferRow: 'Not repaid',
   repayment: 'Repayment',
-  repayOverTime: 'Pay it back over time',
   takeFromBuffer: 'Take it from the buffer',
   fromBufferWarning: (left: string) =>
     `The whole amount leaves the joint account and nobody pays it back. That leaves ${left}, and the buffer only builds up again on months that come in better than normal.`,
-  fromBufferTooBig: 'That would take too much of the buffer.',
+  fromBufferTooBig: (most: string, held: string) =>
+    `At most ${most} can come from the buffer, which is expected to hold ${held}.`,
+  fromBufferNoAmount: 'Enter an amount to take it from the buffer.',
   bufferNote: (amount: string) =>
     `The month came in better than normal, so ${amount} goes to the buffer on top of the costs.`,
   bufferGoalLabel: 'Buffer goal',

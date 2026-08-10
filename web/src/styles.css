@@ -863,6 +863,31 @@ input:disabled {
   color: var(--muted);
 }
 
+/*
+ * Unfilled, so it does not read as a box waiting for input, and flush left so the
+ * checkbox lines up with the label above it and the controls around it.
+ */
+.check-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 16px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.check-control input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.check-control.is-disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
 .field-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
