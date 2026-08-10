@@ -506,9 +506,10 @@ test('a one-off can be taken out of the buffer instead of repaid', async ({ page
   await page.locator('.sheet input[type="text"], .sheet input:not([type])').first().fill('Kök');
   await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('9000');
 
-  const option = page.getByText(/ur bufferten i stället|from the buffer instead/i);
-  await expect(option).toBeVisible();
-  await option.click();
+  // The choice is a field like any other, present before an amount is typed.
+  const repayment = page.locator('.sheet select').first();
+  await expect(repayment).toBeVisible();
+  await repayment.selectOption('buffer');
 
   // The warning states what is left, so the cost of doing it is on screen.
   await expect(page.getByText(/lämnar det gemensamma kontot|leaves the joint account/i)).toBeVisible();
@@ -518,4 +519,35 @@ test('a one-off can be taken out of the buffer instead of repaid', async ({ page
   // The history says it plainly.
   await expect(page.getByText(/Ur bufferten|From the buffer/i).first()).toBeVisible();
   await expect(page.getByText(/Betalas inte tillbaka|Not repaid/i)).toBeVisible();
+});
+
+test('absorbing is refused when it would take most of the buffer', async ({ page, context, request }) => {
+  const email = `${unique('toobig')}@e2e.se`;
+  const cookie = `budget_session=${devSessionCookie(email)}`;
+  await signIn(context, email);
+  const budget = await (await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).json();
+  const me = budget.members[0];
+  await request.put(`/api/members/${me.id}`, { headers: { cookie }, data: { ...me, baselineIncome: 48000 } });
+
+  const costId = unique('c');
+  await request.put(`/api/costs/${costId}`, {
+    headers: { cookie },
+    data: { id: costId, category: 'Boende', description: 'Hyra', amount: 12000, intervalMonths: 1, firstCharge: '2026-01', payerId: null },
+  });
+  const month = new Date().toISOString().slice(0, 7);
+  await request.put('/api/account-balance', { headers: { cookie }, data: { month, amount: 10000 } });
+  await request.put('/api/household/buffer', { headers: { cookie }, data: { months: 2 } });
+
+  await page.goto('/#oneoff');
+  await page.getByRole('button', { name: /^(lägg till|add)$/i }).click();
+  await page.locator('.sheet input[type="text"], .sheet input:not([type])').first().fill('Kök');
+
+  // Inside four fifths of 10 000: allowed.
+  await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('7000');
+  await expect(page.locator('.sheet select option[value="buffer"]')).toBeEnabled();
+
+  // Past it: refused, and it says why.
+  await page.locator('.sheet input[inputmode="decimal"], .sheet input[type="number"]').first().fill('9000');
+  await expect(page.locator('.sheet select option[value="buffer"]')).toBeDisabled();
+  await expect(page.getByText(/för stor del av bufferten|too much of the buffer/i)).toBeVisible();
 });

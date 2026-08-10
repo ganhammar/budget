@@ -1,4 +1,7 @@
 import { useState } from 'react';
+
+/** How much of the buffer a single absorbed cost may take. */
+const MOST_OF_BUFFER = 0.8;
 import { useBudget, newId } from '../store/store';
 import type { OneOffCost } from '../domain/types';
 import {
@@ -78,7 +81,9 @@ export function OneOffCosts() {
     (draft && points.find((p) => p.month === draft.start)?.opening) ??
     estimatedBalance(budget, currentMonth()) ??
     0;
-  const fits = draft ? draft.total > 0 && draft.total <= available : false;
+  // A fifth of the buffer stays standing. Absorbing a cost that empties it leaves
+  // the household with no buffer, which is the thing the buffer was for.
+  const fits = draft ? draft.total > 0 && draft.total <= available * MOST_OF_BUFFER : false;
 
   const row = (cost: OneOffCost) => (
     <ListRow
@@ -156,6 +161,31 @@ export function OneOffCosts() {
               onChange={(v) => setDraft({ ...draft, total: v })}
             />
           </Field>
+          {/* Always here, so it does not appear from nowhere once an amount is
+              typed. The option inside it is what waits for the amount. */}
+          {bufferGoal(budget, currentMonth()) > 0 && (
+            <Field
+              label={t.repayment}
+              hint={draft.total > 0 && !fits ? t.fromBufferTooBig : undefined}
+            >
+              <select
+                value={draft.fromBuffer ? 'buffer' : 'repay'}
+                onChange={(e) => setDraft({ ...draft, fromBuffer: e.target.value === 'buffer' })}
+              >
+                <option value="repay">{t.repayOverTime}</option>
+                <option value="buffer" disabled={!fits}>
+                  {t.takeFromBuffer}
+                </option>
+              </select>
+            </Field>
+          )}
+
+          {draft.fromBuffer && (
+            <div style={{ marginBottom: 14 }}>
+              <Note>{t.fromBufferWarning(sek(Math.max(0, available - draft.total)))}</Note>
+            </div>
+          )}
+
           <div className="field-pair">
             <Field label={t.paidOut} hint={t.paidOutHint}>
               <MonthInput value={draft.start} onChange={(v) => setDraft({ ...draft, start: v })} />
@@ -167,29 +197,6 @@ export function OneOffCosts() {
             )}
           </div>
 
-          {/* Offered only when the account is expected to hold enough that month.
-              Anything larger would take the balance under, which is not absorbing
-              a cost, it is hiding one. */}
-          {bufferGoal(budget, currentMonth()) > 0 && draft.total > 0 && (
-            <>
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={draft.fromBuffer ?? false}
-                  disabled={!fits}
-                  onChange={(e) => setDraft({ ...draft, fromBuffer: e.target.checked })}
-                />
-                {t.fromBufferLabel}
-              </label>
-              {!fits && <span className="hint">{t.fromBufferTooBig}</span>}
-            </>
-          )}
-
-          {draft.fromBuffer && (
-            <div style={{ marginTop: 12 }}>
-              <Note>{t.fromBufferWarning(sek(Math.max(0, available - draft.total)))}</Note>
-            </div>
-          )}
           <Field label={t.paidBy}>
             <PayerSelect
               members={budget.members}

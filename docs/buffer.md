@@ -70,8 +70,10 @@ A one-off can be paid from what the account already holds and never charged back
 The money leaves in the starting month, nobody owes a share, and the balance stays
 lower until good months rebuild it.
 
-Offered only when the account is expected to hold enough that month. Absorbing more
-than that is not absorbing a cost, it is hiding one.
+Offered only up to four fifths of what the account is expected to hold that month.
+Absorbing more than it holds is not absorbing a cost, it is hiding one, and
+absorbing all of it leaves the household with no buffer, which is what the buffer
+was for.
 
 The month's one-off figure still carries the whole amount, with a note naming the
 part nobody repays, since that part is absent from every transfer underneath it.

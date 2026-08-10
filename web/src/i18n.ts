@@ -130,10 +130,12 @@ const sv = {
   fromBuffer: 'Ur bufferten',
   fromBufferBadge: 'Ur bufferten',
   fromBufferRow: 'Betalas inte tillbaka',
-  fromBufferLabel: 'Ta det ur bufferten i stället för att betala tillbaka',
+  repayment: 'Betalning',
+  repayOverTime: 'Betala tillbaka över tid',
+  takeFromBuffer: 'Ta ur bufferten',
   fromBufferWarning: (left: string) =>
     `Hela beloppet lämnar det gemensamma kontot och ingen betalar tillbaka det. Kvar blir ${left}, och bufferten byggs bara upp igen på månader som går bättre än normalt.`,
-  fromBufferTooBig: 'Bufferten räcker inte till hela beloppet.',
+  fromBufferTooBig: 'Beloppet skulle ta för stor del av bufferten.',
   bufferNote: (amount: string) =>
     `Månaden gick bättre än normalt, så ${amount} går till bufferten utöver kostnaderna.`,
   bufferGoalLabel: 'Buffertmål',
@@ -536,10 +538,12 @@ const en: { [K in keyof typeof sv]: (typeof sv)[K] extends string ? string : (ty
   fromBuffer: 'From the buffer',
   fromBufferBadge: 'From the buffer',
   fromBufferRow: 'Not repaid',
-  fromBufferLabel: 'Take it from the buffer instead of paying it back',
+  repayment: 'Repayment',
+  repayOverTime: 'Pay it back over time',
+  takeFromBuffer: 'Take it from the buffer',
   fromBufferWarning: (left: string) =>
     `The whole amount leaves the joint account and nobody pays it back. That leaves ${left}, and the buffer only builds up again on months that come in better than normal.`,
-  fromBufferTooBig: 'The buffer does not cover the whole amount.',
+  fromBufferTooBig: 'That would take too much of the buffer.',
   bufferNote: (amount: string) =>
     `The month came in better than normal, so ${amount} goes to the buffer on top of the costs.`,
   bufferGoalLabel: 'Buffer goal',
