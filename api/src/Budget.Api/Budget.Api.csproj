@@ -23,10 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="3.0.0" />
-    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="3.0.0" />
-    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.0" />
-    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.7" />
+    <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="3.0.1" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="3.0.1" />
+    <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.1" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.11" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
   </ItemGroup>
 
