@@ -8,6 +8,7 @@
 :root {
   color-scheme: light;
 
+  /* Mirrored in index.html, which sets theme-color before this loads. */
   --paper: #fbfaf6;
   --ink: #17160f;
   --ink-2: #5d5a4e;

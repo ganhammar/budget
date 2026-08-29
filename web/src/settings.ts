@@ -49,6 +49,16 @@ function resolve(choice: ThemeChoice): 'light' | 'dark' {
 }
 
 /**
+ * Paints the status bar of an installed app in the same paper as the page, by
+ * copying the applied theme's --paper onto the theme-color meta. Read from the
+ * stylesheet so the colour lives in one place.
+ */
+function applyThemeColor(): void {
+  const paper = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+  if (paper) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', paper);
+}
+
+/**
  * Applies the theme and keeps following the OS while the choice is "system",
  * so switching appearance at night changes the app without a reload.
  */
@@ -56,11 +66,13 @@ export function useTheme(choice: ThemeChoice): void {
   useEffect(() => {
     write(THEME_KEY, choice);
     document.documentElement.dataset.theme = resolve(choice);
+    applyThemeColor();
 
     if (choice !== 'system') return;
     const query = matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
       document.documentElement.dataset.theme = resolve('system');
+      applyThemeColor();
     };
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
