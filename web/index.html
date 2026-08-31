@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#fbfaf6" />
+    <!-- The status bar of an installed app is painted from the theme-color the
+         document was parsed with, and Chrome will not take a light one while the
+         phone is in dark mode: it paints its own grey instead. One meta per
+         appearance, mirroring --paper in styles.css, so the value is already the
+         paper the page is about to use. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf6" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14130f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="pnkt" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
@@ -25,13 +31,14 @@
           dark = false;
         }
         document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-        // The status bar of an installed app is painted from theme-color, so it
-        // has to carry the paper of the theme actually applied rather than the
-        // one the OS asked for. Mirrors --paper in styles.css; the stylesheet is
-        // not loaded yet, so the value cannot be read from it here.
-        document
-          .querySelector('meta[name="theme-color"]')
-          .setAttribute('content', dark ? '#14130f' : '#fbfaf6');
+        // A theme set against the OS wants the other meta's paper, so both are
+        // written with the one actually applied and whichever the appearance
+        // selects is right. The stylesheet is not loaded yet, so the value is the
+        // literal rather than the computed --paper.
+        var paper = dark ? '#14130f' : '#fbfaf6';
+        document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+          meta.setAttribute('content', paper);
+        });
       })();
     </script>
   </head>

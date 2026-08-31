@@ -49,13 +49,17 @@ function resolve(choice: ThemeChoice): 'light' | 'dark' {
 }
 
 /**
- * Paints the status bar of an installed app in the same paper as the page, by
- * copying the applied theme's --paper onto the theme-color meta. Read from the
+ * Paints the status bar in the same paper as the page, by copying the applied
+ * theme's --paper onto both theme-color metas: one is selected by the OS
+ * appearance, and the theme applied may be the other one. Read from the
  * stylesheet so the colour lives in one place.
  */
 function applyThemeColor(): void {
   const paper = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
-  if (paper) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', paper);
+  if (!paper) return;
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((meta) => meta.setAttribute('content', paper));
 }
 
 /**
