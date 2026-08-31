@@ -3,11 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- The status bar of an installed app is painted from the theme-color the
-         document was parsed with, and Chrome will not take a light one while the
-         phone is in dark mode: it paints its own grey instead. One meta per
-         appearance, mirroring --paper in styles.css, so the value is already the
-         paper the page is about to use. -->
+    <!-- What a browser paints its chrome from. An installed app on Android takes
+         the manifest's theme_color instead, whichever of these matches, so these
+         are the browser's copy of the same colours. Mirrors --paper in
+         styles.css, one value per appearance. -->
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf6" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14130f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

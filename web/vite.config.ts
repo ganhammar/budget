@@ -25,10 +25,10 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         scope: '/',
-        // Android bakes these into the installed app, so unlike the metas in
-        // index.html they cannot follow the theme: one value has to serve both,
-        // and a light one is refused by a phone in dark mode, which paints its
-        // own grey instead. Dark paper, which every appearance will take.
+        // The status bar and splash of an installed app on Android. Baked into
+        // the app at install, so unlike the metas in index.html they cannot
+        // follow the theme and one value has to serve both. Dark paper: a light
+        // band above the dark page is the mismatch that shows.
         background_color: '#14130f',
         theme_color: '#14130f',
         icons: [{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
