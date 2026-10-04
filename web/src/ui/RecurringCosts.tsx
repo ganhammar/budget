@@ -76,6 +76,10 @@ export function RecurringCosts() {
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'sv'));
   }, [live]);
 
+  // What the cost being edited charges now, which is its own amount only until a
+  // charge change is recorded.
+  const draftCharge = draft ? costTermsAt(draft, thisMonth).amount : 0;
+
   const total = live.reduce((sum, c) => sum + monthlyAmount(c, thisMonth), 0);
   const memberName = (id?: string) => budget.members.find((m) => m.id === id)?.name;
 
@@ -205,14 +209,15 @@ export function RecurringCosts() {
             <div className="list">
               {costs.map((cost) => {
                 const next = upcomingCharges(cost, currentMonth(), 12)[0];
+                const terms = costTermsAt(cost, thisMonth);
                 return (
                   <ListRow
                     key={cost.id}
                     title={cost.description}
-                    badge={memberName(cost.payerId)}
+                    badge={memberName(terms.payerId)}
                     subtitle={
                       cost.intervalWeeks || cost.intervalMonths !== 1
-                        ? `${sek(cost.amount)} · ${intervalLabel(cost, t)}${next ? ` · ${t.nextCharge(formatMonthShort(next))}` : ''}`
+                        ? `${sek(terms.amount)} · ${intervalLabel(cost, t)}${next ? ` · ${t.nextCharge(formatMonthShort(next))}` : ''}`
                         : t.everyMonth
                     }
                     amount={sek(monthlyAmount(cost, thisMonth))}
@@ -397,9 +402,9 @@ export function RecurringCosts() {
             <span className="hint">{t.changeChargeHint}</span>
           )}
 
-          {draft.amount > 0 && (draft.intervalWeeks || draft.intervalMonths > 1) && (
+          {draftCharge > 0 && (draft.intervalWeeks || draft.intervalMonths > 1) && (
             <Note>
-              {t.budgetedPrefix(sek(draft.amount), intervalLabel(draft, t))}{' '}
+              {t.budgetedPrefix(sek(draftCharge), intervalLabel(draft, t))}{' '}
               <strong>
                 {sek(monthlyAmount(draft, thisMonth))}
                 {t.perMonth}

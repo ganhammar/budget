@@ -283,6 +283,53 @@ test.describe('roles', () => {
 });
 
 /**
+ * A changed charge is recorded as dated terms, and the cost's own fields keep
+ * what it charged before. Every figure shown for this month has to be the new one.
+ */
+test.describe('recurring costs', () => {
+  test('a changed charge is shown wherever the cost is', async ({ page, context, request }) => {
+    const email = `${unique('charge')}@e2e.se`;
+    await signIn(context, email);
+    const cookie = `budget_session=${devSessionCookie(email)}`;
+    const budget = await (await request.post('/api/households', { headers: { cookie }, data: HOUSEHOLD })).json();
+    const me = budget.members[0];
+
+    const month = new Date().toISOString().slice(0, 7);
+    const costId = unique('c');
+    expect(
+      (
+        await request.put(`/api/costs/${costId}`, {
+          headers: { cookie },
+          data: {
+            id: costId,
+            category: 'Media',
+            description: 'Disney Plus',
+            amount: 990,
+            intervalMonths: 12,
+            firstCharge: month,
+            payerId: null,
+            terms: [{ from: month, amount: 1090, payerId: me.id }],
+          },
+        })
+      ).status(),
+    ).toBe(204);
+
+    await page.goto('/#costs');
+    const row = page.locator('.row', { hasText: 'Disney Plus' });
+    await expect(row.locator('.row-sub')).toContainText(/1[\s ,]?090/);
+    await expect(row.locator('.row-sub')).not.toContainText(/990/);
+    await expect(row.locator('.badge')).toHaveText(HOUSEHOLD.name);
+
+    await row.click();
+    await page.getByRole('button', { name: /^(ändra|edit)$/i }).click();
+    const sheet = page.locator('.sheet');
+    await expect(sheet.locator('.terms-current')).toContainText(/1[\s ,]?090/);
+    await expect(sheet.locator('.note')).toContainText(/1[\s ,]?090/);
+    await expect(sheet).not.toContainText(/(^|[^\d])990/);
+  });
+});
+
+/**
  * The whole first-run path, on a household that has just been created. Each
  * question is derived from the data, so this also proves a household cannot get
  * stuck between steps.

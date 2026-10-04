@@ -248,6 +248,31 @@ export function activeMembers(budget: Budget): Member[] {
 }
 
 /**
+ * The budget once a member has left. Whatever they paid directly falls back to the
+ * joint account, in every dated terms entry as well as the entity's own field: a
+ * payer left behind in terms would keep the charge off the account forecast while
+ * nobody still in the household is paying it.
+ */
+export function withoutMember(budget: Budget, memberId: string): Budget {
+  const unpaid = <T extends { payerId?: string }>(item: T): T =>
+    item.payerId === memberId ? { ...item, payerId: undefined } : item;
+  const unpaidTerms = <T extends { payerId?: string; terms?: { payerId?: string }[] }>(item: T): T => {
+    const cleared = unpaid(item);
+    if (!cleared.terms?.some((entry) => entry.payerId === memberId)) return cleared;
+    return { ...cleared, terms: cleared.terms.map(unpaid) };
+  };
+
+  return {
+    ...budget,
+    members: budget.members.filter((m) => m.id !== memberId),
+    recurringCosts: budget.recurringCosts.map(unpaidTerms),
+    oneOffCosts: budget.oneOffCosts.map(unpaid),
+    loans: budget.loans.map(unpaidTerms),
+    income: budget.income.filter((i) => i.memberId !== memberId),
+  };
+}
+
+/**
  * The categories to offer. Whatever the household has chosen, plus any category its
  * costs already reference: a name in use must never drop out of the list, or editing
  * that cost would silently move it somewhere else.

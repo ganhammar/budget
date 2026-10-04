@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useBudget, newId } from '../store/store';
-import type { Member, Role, SplitRule } from '../domain/types';
+import { withoutMember, type Member, type Role, type SplitRule } from '../domain/types';
 import { sek } from '../domain/format';
 import { currentMonth, formatMonth } from '../domain/month';
 import { bufferGoal, bufferMonthsOf, estimatedBalance } from '../domain/engine';
@@ -84,18 +84,7 @@ export function Household() {
   }
 
   function removeMember(memberId: string) {
-    update((b) => ({
-      ...b,
-      members: b.members.filter((m) => m.id !== memberId),
-      recurringCosts: b.recurringCosts.map((c) =>
-        c.payerId === memberId ? { ...c, payerId: undefined } : c,
-      ),
-      oneOffCosts: b.oneOffCosts.map((c) =>
-        c.payerId === memberId ? { ...c, payerId: undefined } : c,
-      ),
-      loans: b.loans.map((l) => (l.payerId === memberId ? { ...l, payerId: undefined } : l)),
-      income: b.income.filter((i) => i.memberId !== memberId),
-    }));
+    update((b) => withoutMember(b, memberId));
     setSelected(null);
   }
 

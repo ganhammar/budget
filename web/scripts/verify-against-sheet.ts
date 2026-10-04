@@ -5,7 +5,7 @@
  * Where the engine and the sheet disagree, the sheet is the one that is wrong:
  * it applies ROUNDUP to each loan's interest, inflating the total by 3.72 kr/month.
  */
-import type { Budget, RecurringCost, SplitRule } from '../src/domain/types';
+import { withoutMember, type Budget, type RecurringCost, type SplitRule } from '../src/domain/types';
 import {
   averageCommitment,
   bufferGoal,
@@ -222,6 +222,38 @@ for (const month of ['2026-08', '2026-09'] as const) {
     Math.abs(after - before) > 0.01,
     shouldMove,
   );
+}
+
+console.log('\n— A removed member leaves no payer behind in dated terms —');
+{
+  // Paid jointly at first, then taken over by Petra: the payer lives only in terms.
+  const takenOver: Budget = {
+    ...sheetBudget,
+    recurringCosts: [
+      {
+        id: 'Disney Plus',
+        category: 'Media',
+        description: 'Disney Plus',
+        amount: 990,
+        intervalMonths: 12,
+        firstCharge: '2025-09',
+        terms: [{ from: '2026-09', amount: 1090, payerId: PETRA }],
+      },
+    ],
+    loans: sheetBudget.loans.map((loan, i) =>
+      i === 0 ? { ...loan, terms: [{ from: '2026-01', nominalRate: 0.03, payerId: PETRA }] } : loan,
+    ),
+  };
+  const removed = withoutMember(takenOver, PETRA);
+
+  expect('the member is gone', removed.members.some((m) => m.id === PETRA), false);
+  expect('no cost terms name them',
+    removed.recurringCosts.some((c) => c.terms?.some((e) => e.payerId === PETRA)), false);
+  expect('no loan terms name them',
+    removed.loans.some((l) => l.terms?.some((e) => e.payerId === PETRA)), false);
+  check('the charge in force is kept', removed.recurringCosts[0].terms![0].amount, 1090, 0);
+  expect('the charge lands on the joint account again',
+    calculateMonth(removed, '2026-09').outflowItems.some((i) => i.label === 'Disney Plus'), true);
 }
 
 console.log('\n— Savings —');
