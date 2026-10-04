@@ -25,6 +25,10 @@
     <PackageReference Include="Amazon.Lambda.RuntimeSupport" Version="2.2.3" />
     <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="3.0.1" />
     <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.15" />
+    <PackageReference Include="OpenTelemetry" Version="1.19.1" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
   </ItemGroup>
 
 </Project>

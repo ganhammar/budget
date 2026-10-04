@@ -7,6 +7,7 @@ using Amazon.SecretsManager;
 using Amazon.SecretsManager.Model;
 using Amazon.SimpleEmailV2;
 using Microsoft.AspNetCore.Mvc;
+using OpenTelemetry.Logs;
 using Budget.Api;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -17,6 +18,18 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     // Without this every "ö" ships as ö, which is most of a Swedish payload.
     options.SerializerOptions.Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
 });
+
+builder.Services.AddOpenTelemetry()
+    .WithLogging(logging => logging.AddOtlpExporter())
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddMeter("System.Runtime") // .NET 9 and later: memory, CPU and GC
+        .AddOtlpExporter());
+builder.Logging.AddFilter<OpenTelemetryLoggerProvider>("*", LogLevel.Warning);
 
 // Only active when running under Lambda; a no-op locally. The explicit
 // source-generated serializer is required: the default one reflects, which breaks

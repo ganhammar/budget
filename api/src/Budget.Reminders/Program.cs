@@ -5,6 +5,13 @@ using Amazon.Lambda.RuntimeSupport;
 using Amazon.Lambda.Serialization.SystemTextJson;
 using Amazon.SimpleEmailV2;
 using Budget.Api;
+using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace Budget.Reminders;
 
@@ -31,6 +38,36 @@ public static class Program
 
     public static async Task Main()
     {
+        var resource = ResourceBuilder.CreateDefault().AddService("budget-reminders");
+        static void Ourfault(OtlpExporterOptions exporter, string endpoint)
+        {
+            exporter.Endpoint = new Uri(endpoint);
+            exporter.Protocol = OtlpExportProtocol.HttpProtobuf;
+            exporter.Headers = "Authorization=Bearer " + Environment.GetEnvironmentVariable("OURFAULT_TOKEN");
+        }
+        using var tracerProvider = Sdk.CreateTracerProviderBuilder()
+            .SetResourceBuilder(resource)
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter(exporter => Ourfault(exporter, "https://ingest.ourfault.dev/v1/traces"))
+            .Build();
+        using var meterProvider = Sdk.CreateMeterProviderBuilder()
+            .SetResourceBuilder(resource)
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddOtlpExporter(exporter => Ourfault(exporter, "https://ingest.ourfault.dev/v1/metrics"))
+            .Build();
+        using var loggerFactory = LoggerFactory.Create(logging => logging
+            .AddOpenTelemetry(options =>
+            {
+                options.SetResourceBuilder(resource);
+                options.AddOtlpExporter((exporter, processor) =>
+                {
+                    Ourfault(exporter, "https://ingest.ourfault.dev/v1/logs");
+                    processor.ExportProcessorType = ExportProcessorType.Simple;
+                });
+            })
+            .AddFilter<OpenTelemetryLoggerProvider>("*", Microsoft.Extensions.Logging.LogLevel.Warning));
+
         var tableName = Environment.GetEnvironmentVariable("TABLE_NAME") ?? "budget";
         var fromAddress = Environment.GetEnvironmentVariable("FROM_ADDRESS") ?? "budget@ganhammar.se";
         var appUrl = Environment.GetEnvironmentVariable("APP_URL") ?? "https://budget.ganhammar.se";
@@ -42,10 +79,18 @@ public static class Program
         var handler = async (ReminderEvent input, ILambdaContext context) =>
             await RunAsync(store, email, push, input, context, CancellationToken.None);
 
-        await LambdaBootstrapBuilder
-            .Create(handler, new SourceGeneratorLambdaJsonSerializer<ReminderJsonContext>())
-            .Build()
-            .RunAsync();
+        try
+        {
+            await LambdaBootstrapBuilder
+                .Create(handler, new SourceGeneratorLambdaJsonSerializer<ReminderJsonContext>())
+                .Build()
+                .RunAsync();
+        }
+        finally
+        {
+            tracerProvider.ForceFlush();
+            meterProvider.ForceFlush();
+        }
     }
 
     /// <summary>Absent key means push is simply not sent; the mail still goes.</summary>

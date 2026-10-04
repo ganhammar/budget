@@ -64,3 +64,19 @@ amount and interval. That cannot be recovered and has to be re-entered.
   edit being silently lost.
 - Scraper for Länsförsäkringar's published rates, to flag when renegotiating is
   worth it.
+
+## Observability
+
+```
+OTEL_SERVICE_NAME=budget-api
+OTEL_RESOURCE_ATTRIBUTES=service.version=${GIT_SHA}
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=https://ingest.ourfault.dev/v1/logs
+OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_LOGS_HEADERS=Authorization=Bearer%20${OURFAULT_TOKEN}
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://ingest.ourfault.dev/v1/traces
+OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_TRACES_HEADERS=Authorization=Bearer%20${OURFAULT_TOKEN}
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://ingest.ourfault.dev/v1/metrics
+OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_METRICS_HEADERS=Authorization=Bearer%20${OURFAULT_TOKEN}
+```
