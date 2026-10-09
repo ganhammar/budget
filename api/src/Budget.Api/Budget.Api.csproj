@@ -26,7 +26,7 @@
     <PackageReference Include="Amazon.Lambda.APIGatewayEvents" Version="3.0.1" />
     <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="3.0.1" />
     <PackageReference Include="Amazon.Lambda.AspNetCoreServer.Hosting" Version="2.2.1" />
-    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.15" />
+    <PackageReference Include="AWSSDK.SecretsManager" Version="4.0.100.16" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
   </ItemGroup>
 
